@@ -22,3 +22,8 @@ export function initials(name: string): string {
     .map((w) => w[0]?.toUpperCase())
     .join("");
 }
+
+export function userTypeLabel(userType: "personal" | "business" | "aro"): string {
+  if (userType === "aro") return "ARO";
+  return userType === "business" ? "Business" : "Personal";
+}

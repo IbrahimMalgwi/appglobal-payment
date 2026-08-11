@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Search, LogOut } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { formatNaira, initials } from "@/lib/format";
-import Image from "next/image";
 
 export default function SelectAccountPage() {
   const { accounts, selectAccount, userName, userEmail } = useApp();

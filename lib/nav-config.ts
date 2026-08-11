@@ -3,16 +3,14 @@ import {
   Wallet,
   CreditCard,
   Repeat,
-  ShoppingBag,
-  Smartphone,
-  Wifi,
   Receipt,
   Landmark,
   ShieldAlert,
   Tv,
-  Activity,
   Gift,
   Users,
+  ListChecks,
+  PieChart,
   type LucideIcon,
 } from "lucide-react";
 import { UserType } from "./types";
@@ -36,77 +34,65 @@ export interface NavSection {
   items: NavItem[];
 }
 
-export const navSections: NavSection[] = [
+// --- Personal / Business customer nav ---
+
+const customerNavSections: NavSection[] = [
   {
     items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutGrid }],
   },
   {
     items: [
-      {
-        label: "Accounts",
-        icon: Wallet,
-        children: [
-          { label: "All Transactions", href: "/accounts/all-transactions" },
-          { label: "Daily Summary", href: "/accounts/daily-summary" },
-        ],
-      },
+      { label: "Accounts", href: "/accounts", icon: Wallet },
       { label: "Card", href: "/card", icon: CreditCard, businessOnly: true },
+      { label: "Transactions", href: "/transactions", icon: Receipt },
     ],
   },
   {
-    heading: "Payments",
     items: [
-      {
-        label: "Payments",
-        icon: Receipt,
-        children: [
-          { label: "All Transactions", href: "/payments/all-transactions" },
-          { label: "Top 5 Transactions", href: "/payments/top-five" },
-        ],
-      },
       {
         label: "Transfers",
         icon: Repeat,
         children: [
-          { label: "Instant Transfer", href: "/transfers/instant" },
-          { label: "Recurring Transfer", href: "/transfers/recurring" },
-          { label: "Bulk Transfer", href: "/transfers/bulk" },
+          { label: "AppPay Transfer", href: "/transfers/apppay" },
+          { label: "Interbank Transfer", href: "/transfers/interbank" },
         ],
       },
-      { label: "Purchases", href: "/purchases", icon: ShoppingBag },
-      { label: "Airtime", href: "/airtime", icon: Smartphone },
-      { label: "Data", href: "/data", icon: Wifi },
-      { label: "Bill Payment", href: "/bill-payment", icon: Landmark },
-      { label: "POS Transfer", href: "/pos-transfer", icon: Tv, businessOnly: true },
       {
-        label: "Disputes",
-        icon: ShieldAlert,
+        label: "POS",
+        icon: Tv,
+        businessOnly: true,
         children: [
-          { label: "POS Disputes", href: "/disputes/pos" },
-          { label: "Front Office Disputes", href: "/disputes/front-office" },
-          { label: "Card Disputes", href: "/disputes/card" },
+          { label: "POS Transfer", href: "/pos/transfer" },
+          { label: "POS Withdrawal", href: "/pos/withdrawal" },
         ],
       },
+      { label: "Bill Payment", href: "/bill-payment", icon: Landmark },
+      { label: "Dispute", href: "/dispute", icon: ShieldAlert },
     ],
   },
   {
-    heading: "Channels",
-    items: [
-      { label: "POS", href: "/channels/pos", icon: Tv },
-      { label: "Network", href: "/channels/network", icon: Activity },
-    ],
+    items: [{ label: "Earn Money", href: "/earn", icon: Gift }],
+  },
+];
+
+// --- Agent Relationship Officer (ARO) nav ---
+
+const aroNavSections: NavSection[] = [
+  {
+    items: [{ label: "Overview", href: "/aro/overview", icon: LayoutGrid }],
   },
   {
-    heading: "Earn Money",
     items: [
-      { label: "Cashback", href: "/earn/cashback", icon: Gift },
-      { label: "Referrals", href: "/earn/referrals", icon: Users },
+      { label: "Agent Management", href: "/aro/agents", icon: Users },
+      { label: "Transaction Monitoring", href: "/aro/transactions", icon: ListChecks },
+      { label: "Commission Breakdown", href: "/aro/commission", icon: PieChart },
     ],
   },
 ];
 
 export function getNavForUserType(userType: UserType): NavSection[] {
-  return navSections
+  const source = userType === "aro" ? aroNavSections : customerNavSections;
+  return source
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => !item.businessOnly || userType === "business"),

@@ -1,7 +1,7 @@
 # AppGlobal Payment
 
-A Next.js (App Router) scaffold for the AppGlobal Payment platform — personal & business
-dashboards, multi-account switching, and the full module set from the spec.
+A Next.js 16 (App Router) app for the AppGlobal Payment platform — personal & business
+dashboards, multi-account switching, and the following modules.
 
 ## Getting started
 
@@ -12,53 +12,80 @@ npm run dev
 
 Then open http://localhost:3000 — it redirects to `/dashboard`.
 
-To see the business flow (account selection screen), go to `/login` and choose
-**"Continue as Business user"**.
+Go to `/login` to switch between the Personal, Business, and Agent Relationship Officer (ARO)
+demo profiles.
 
-## What's fully wired
+## Agent Relationship Officer (ARO)
 
-- **Theming**: custom navy/blue Tailwind palette, `Sora` (headings) + `Inter` (body) via
-  `next/font/google` — see `tailwind.config.ts` and `app/globals.css`.
-- **Layout shell**: `components/layout/Sidebar.tsx` (collapsible, data-driven from
-  `lib/nav-config.ts`, auto-filters business-only items), `Topbar.tsx`, `AccountSwitcher.tsx`.
-- **State**: `context/AppContext.tsx` — holds `userType` (personal/business), selected
-  business account, sidebar collapsed state. Swap this for real auth/session state later.
-- **Personal vs Business**: nav items and dashboard content adapt based on `userType`.
-  Business users with multiple accounts see `/select-account` after login and can switch
-  accounts anytime from the topbar.
-- **Fully built pages**:
-  - `/dashboard` — balance card, cashback/referral, quick actions, recent activity
-  - `/accounts/all-transactions`, `/accounts/daily-summary` (date filter)
-  - `/payments/all-transactions`, `/payments/top-five`
-  - `/card`, `/purchases`
-  - `/airtime`, `/data`, `/bill-payment` (mock purchase forms + history)
-  - `/transfers/instant`, `/transfers/recurring`, `/transfers/bulk`
-  - `/pos-transfer` (Pending / Accepted / Declined tabs, business-only)
-  - `/disputes/pos`, `/disputes/front-office`, `/disputes/card`
-  - `/channels/pos`, `/channels/network`
-  - `/earn/cashback`, `/earn/referrals`
-  - `/login`, `/select-account`
+A third user type with its own dedicated dashboard, reusing the same Sidebar/Topbar shell and
+UI primitives but with a completely different nav (see `lib/nav-config.ts`, branches on
+`userType === "aro"`):
 
-## Shared building blocks (reuse these for new pages/features)
+```
+Overview                 — summary cards + a "highest performing agents" bar chart
+                            (toggle: volume / count / terminal activity / commission)
+Agent Management          — searchable agent list, click through to an Agent Profile
+  └── Agent Profile       — /aro/agents/[id], tabs: Overview / Terminals / Transactions / Commission
+Transaction Monitoring    — agent + type + date-range filters, Credit/Debit/Net/Volume summary
+Commission Breakdown      — ARO's own commission by source, plus a per-agent filterable breakdown
+```
 
-- `components/ui/Table.tsx` — generic typed data table
-- `components/ui/Tabs.tsx` — query-param-driven tabs (for states within one route, e.g.
-  POS Transfer's pending/accepted/declined)
-- `components/ui/RouteTabs.tsx` — link-driven tabs between sibling routes (e.g. Accounts'
-  All Transactions / Daily Summary)
-- `components/ui/Card.tsx`, `Badge.tsx`
+All ARO data lives in `lib/mock-data.ts` (`agents`, `aroTransactions`, `agentCommissions`,
+`aroCommissionSummary`, `getAroSummary()`) — same mock-data pattern as the rest of the app.
+
+**Before running:** drop your logo at `public/logo.png` and your favicon at `app/favicon.ico`
+(see `public/README.txt`).
+
+## Navigation
+
+```
+Dashboard
+Accounts            — list of the user's account(s): name, number, type, balances, status, currency
+Card                — Coming Soon
+Transactions        — Top 5 by default, "View All Transactions" adds search/date/type/status filters
+Transfers
+  ├── AppPay Transfer     — in-network, instant
+  └── Interbank Transfer  — to any other bank
+POS (business only)
+  ├── POS Transfer    — pending/accepted/declined tabs
+  └── POS Withdrawal  — cash withdrawals through attached POS devices
+Bill Payment        — 4 categories shown, "Show more" reveals the rest; history filters by category
+Dispute             — one page, POS / Withdrawal tabs
+Earn Money          — one page, Referral / Cashback (Coming Soon) tabs
+```
+
+Plus: a floating chatbot (bottom-right, mock replies) on every authenticated page, and an
+"Agent Relationship Officer" card on the dashboard.
+
+## What's mocked vs. real
+
+Everything is mocked client-side in `lib/mock-data.ts` — no backend. Forms "submit" via a
+`setTimeout`, mutate local React state, and show a toast. Swap the `setTimeout` blocks for
+real API calls when a backend exists; the chatbot's `getMockBotReply` in
+`components/chatbot/ChatbotWidget.tsx` is similarly a placeholder for a real `/api/chat` call.
+
+## Mobile responsiveness
+
+- **Sidebar** becomes an off-canvas drawer below the `lg` breakpoint (hamburger button in the
+  topbar opens it, backdrop click or nav click closes it). On desktop it's the original
+  sticky/collapsible sidebar.
+- **Tables** (`components/ui/Table.tsx`) scroll horizontally and support a `hideOnMobile` flag
+  per column to drop non-essential columns (Reference, Type, etc.) on small screens.
+- **Dashboard, forms, modals** use responsive grid/flex classes throughout
+  (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`-style patterns).
+- **Chatbot** respects `env(safe-area-inset-bottom)` so it doesn't sit under mobile browser
+  chrome, and sizes itself to `calc(100vw - 2.5rem)` on narrow screens so it never overflows.
+
+## Shared building blocks
+
+- `components/ui/Table.tsx`, `Tabs.tsx` (query-param tabs), `RouteTabs.tsx` (sibling-route
+  tabs), `Card.tsx`, `Badge.tsx`, `Modal.tsx`, `ComingSoon.tsx`
 - `components/modules/TransactionsTable.tsx`, `TransfersTable.tsx`, `DisputesTable.tsx`
-- `lib/mock-data.ts` — all data is **synthetic**, swap for real API calls
-- `lib/format.ts` — currency/date formatting helpers
-
-## Not yet built (natural next steps)
-
-- Real authentication (login page is a mock profile switcher)
-- The "Performance" dashboard module (spec says it's coming later)
-- Wiring up the "Buy Airtime / Buy Data / Pay Bill" forms and transfer forms to real actions
-- Data fetching from an actual backend (currently all `lib/mock-data.ts`)
-- Notifications panel, settings page
+- `lib/mock-data.ts` — all data + a couple of small pure helpers (`getAccountsForUser`,
+  `getBillHistory`) so pages don't hardcode filtering logic
+- `lib/nav-config.ts` — single source of truth for the sidebar; add a route here and it
+  appears automatically (`businessOnly: true` hides it from personal users)
 
 ## Stack
 
-Next.js 14 (App Router) · TypeScript · Tailwind CSS · lucide-react icons
+Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Tailwind CSS · lucide-react

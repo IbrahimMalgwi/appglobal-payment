@@ -1,8 +1,10 @@
 import { ReactNode } from "react";
+import { clsx } from "clsx";
 
 export interface Column<T> {
   header: string;
   align?: "left" | "right";
+  hideOnMobile?: boolean; // hides this column below the sm breakpoint
   render: (row: T) => ReactNode;
 }
 
@@ -13,7 +15,7 @@ export function Table<T extends { id: string }>({
 }: {
   columns: Column<T>[];
   rows: T[];
-  emptyMessage?: string;
+  emptyMessage?: ReactNode;
 }) {
   if (rows.length === 0) {
     return (
@@ -26,15 +28,17 @@ export function Table<T extends { id: string }>({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[640px] border-collapse text-sm">
+      <table className="w-full min-w-[560px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-surface-border text-left">
             {columns.map((col) => (
               <th
                 key={col.header}
-                className={`whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-ink-400 ${
-                  col.align === "right" ? "text-right" : "text-left"
-                }`}
+                className={clsx(
+                  "whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-ink-400",
+                  col.align === "right" ? "text-right" : "text-left",
+                  col.hideOnMobile && "hidden sm:table-cell"
+                )}
               >
                 {col.header}
               </th>
@@ -47,9 +51,11 @@ export function Table<T extends { id: string }>({
               {columns.map((col) => (
                 <td
                   key={col.header}
-                  className={`whitespace-nowrap px-4 py-3.5 tabular ${
-                    col.align === "right" ? "text-right" : "text-left"
-                  }`}
+                  className={clsx(
+                    "whitespace-nowrap px-4 py-3.5 tabular",
+                    col.align === "right" ? "text-right" : "text-left",
+                    col.hideOnMobile && "hidden sm:table-cell"
+                  )}
                 >
                   {col.render(row)}
                 </td>

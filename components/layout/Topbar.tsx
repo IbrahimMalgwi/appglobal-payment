@@ -1,21 +1,28 @@
 "use client";
 
-import { Bell, Settings, LogOut } from "lucide-react";
+import { Bell, Settings, LogOut, Menu } from "lucide-react";
 import Link from "next/link";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { useApp } from "@/context/AppContext";
-import { initials } from "@/lib/format";
+import { initials, userTypeLabel } from "@/lib/format";
 
 export function Topbar() {
-  const { userName, userEmail, userType } = useApp();
+  const { userName, userType, openMobileNav } = useApp();
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-surface-border bg-surface-card/90 px-6 backdrop-blur">
-      <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-surface-border bg-surface-card/90 px-4 backdrop-blur sm:px-6">
+      <div className="flex min-w-0 items-center gap-3">
+        <button
+          onClick={openMobileNav}
+          aria-label="Open menu"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-500 hover:bg-surface lg:hidden"
+        >
+          <Menu size={20} />
+        </button>
         <AccountSwitcher />
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-4">
         <button
           aria-label="Notifications"
           className="grid h-9 w-9 place-items-center rounded-full text-ink-500 hover:bg-surface"
@@ -24,7 +31,7 @@ export function Topbar() {
         </button>
         <button
           aria-label="Settings"
-          className="grid h-9 w-9 place-items-center rounded-full text-ink-500 hover:bg-surface"
+          className="hidden h-9 w-9 place-items-center rounded-full text-ink-500 hover:bg-surface sm:grid"
         >
           <Settings size={18} />
         </button>
@@ -41,7 +48,7 @@ export function Topbar() {
           </span>
           <span className="leading-tight">
             <span className="block text-sm font-semibold text-ink-900">{userName}</span>
-            <span className="block text-xs capitalize text-ink-400">{userType} user</span>
+            <span className="block text-xs text-ink-400">{userTypeLabel(userType)} user</span>
           </span>
         </div>
       </div>

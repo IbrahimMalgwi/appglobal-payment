@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 
@@ -10,8 +11,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-navy-950 px-4">
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-navy-900 p-8 shadow-panel">
         <div className="mb-6 flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 font-display text-sm font-bold text-white">
-            AG
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg">
+            <Image src="/logo.png" alt="AppGlobal Payment" width={36} height={36} className="rounded-lg" />
           </div>
           <span className="font-display text-lg font-bold text-white">AppGlobal Payment</span>
         </div>
@@ -32,6 +33,13 @@ export default function LoginPage() {
             className="block rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-600"
           >
             Continue as Business user
+          </Link>
+          <Link
+            href="/aro/overview"
+            onClick={() => setUserType("aro")}
+            className="block rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-white hover:border-brand-400"
+          >
+            Continue as Agent Relationship Officer
           </Link>
         </div>
       </div>

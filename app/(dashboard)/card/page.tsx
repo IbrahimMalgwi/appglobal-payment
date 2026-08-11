@@ -1,16 +1,15 @@
+import { CreditCard } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { TransactionsTable } from "@/components/modules/TransactionsTable";
-import { transactions } from "@/lib/mock-data";
+import { ComingSoon } from "@/components/ui/ComingSoon";
 
 export default function CardPage() {
-  const cardTransactions = transactions.filter((t) => t.kind === "CARD");
   return (
     <div>
-      <PageHeader title="Card" description="Card-based transactions for this business account." />
-      <TransactionsTable
-        title="Card Transactions"
-        transactions={cardTransactions}
-        emptyMessage="No card transactions yet."
+      <PageHeader title="Card" description="Card-based transactions for this account." />
+      <ComingSoon
+        icon={CreditCard}
+        title="Card is coming soon"
+        description="We're building card issuance and card transaction tracking. This will be available shortly."
       />
     </div>
   );

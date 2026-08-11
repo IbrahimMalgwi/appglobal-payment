@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState, ReactNode } from "react";
-import { businessAccounts, currentUser } from "@/lib/mock-data";
+import { businessAccounts, currentUser, aroOfficer } from "@/lib/mock-data";
 import { BusinessAccount, UserType } from "@/lib/types";
 
 interface AppContextValue {
@@ -12,6 +12,9 @@ interface AppContextValue {
   selectAccount: (id: string) => void;
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
+  mobileNavOpen: boolean;
+  openMobileNav: () => void;
+  closeMobileNav: () => void;
   userName: string;
   userEmail: string;
 }
@@ -22,6 +25,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [userType, setUserType] = useState<UserType>(currentUser.userType);
   const [selectedAccountId, setSelectedAccountId] = useState<string>(businessAccounts[0]?.id ?? "");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const selectedAccount = useMemo(
     () => businessAccounts.find((a) => a.id === selectedAccountId) ?? null,
@@ -36,8 +40,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     selectAccount: setSelectedAccountId,
     sidebarCollapsed,
     toggleSidebar: () => setSidebarCollapsed((v) => !v),
-    userName: currentUser.name,
-    userEmail: currentUser.email,
+    mobileNavOpen,
+    openMobileNav: () => setMobileNavOpen(true),
+    closeMobileNav: () => setMobileNavOpen(false),
+    userName: userType === "aro" ? aroOfficer.name : currentUser.name,
+    userEmail: userType === "aro" ? aroOfficer.email : currentUser.email,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
