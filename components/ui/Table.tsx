@@ -1,22 +1,39 @@
 import { ReactNode } from "react";
 import { clsx } from "clsx";
+import { InteractiveTable } from "./InteractiveTable";
 
 export interface Column<T> {
   header: string;
   align?: "left" | "right";
   hideOnMobile?: boolean; // hides this column below the sm breakpoint
+  sortable?: boolean; // enables header-click sorting (requires sortValue to take effect)
+  sortValue?: (row: T) => string | number; // comparable value used when sorting this column
   render: (row: T) => ReactNode;
 }
 
-export function Table<T extends { id: string }>({
-  columns,
-  rows,
-  emptyMessage = "No records yet",
-}: {
+export interface TableProps<T> {
   columns: Column<T>[];
   rows: T[];
   emptyMessage?: ReactNode;
-}) {
+  pageSize?: number; // undefined = no pagination (default, static behavior)
+  onRowClick?: (row: T) => void;
+}
+
+/**
+ * Shared table. Callers that opt into sorting, pagination, or row clicks are handed off
+ * to the client-only <InteractiveTable> (which manages its own sort/page state). Plain
+ * callers render the original static markup here, so <Table> stays usable from server
+ * components — no function props ever cross a server→client boundary on that path.
+ */
+export function Table<T extends { id: string }>(props: TableProps<T>) {
+  const { columns, rows, emptyMessage = "No records yet", pageSize, onRowClick } = props;
+
+  const isInteractive =
+    pageSize != null || !!onRowClick || columns.some((c) => c.sortable && c.sortValue);
+  if (isInteractive) {
+    return <InteractiveTable {...props} />;
+  }
+
   if (rows.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-1 py-16 text-center">

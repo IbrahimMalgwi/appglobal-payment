@@ -10,7 +10,7 @@ import {
   Gift,
   Users,
   ListChecks,
-  PieChart,
+  LineChart,
   type LucideIcon,
 } from "lucide-react";
 import { UserType } from "./types";
@@ -79,13 +79,16 @@ const customerNavSections: NavSection[] = [
 
 const aroNavSections: NavSection[] = [
   {
-    items: [{ label: "Overview", href: "/aro/overview", icon: LayoutGrid }],
+    items: [
+      { label: "Overview", href: "/aro/overview", icon: LayoutGrid },
+      { label: "Settlement Account", href: "/aro/settlement", icon: Wallet },
+    ],
   },
   {
     items: [
       { label: "Agent Management", href: "/aro/agents", icon: Users },
+      { label: "Performance", href: "/aro/performance", icon: LineChart },
       { label: "Transaction Monitoring", href: "/aro/transactions", icon: ListChecks },
-      { label: "Commission Breakdown", href: "/aro/commission", icon: PieChart },
     ],
   },
 ];

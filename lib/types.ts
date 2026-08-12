@@ -1,5 +1,33 @@
 export type UserType = "personal" | "business" | "aro";
 
+// --- Sign-up onboarding wizard ---
+
+export type SignupStep = "role" | "identity" | "business-info" | "security";
+export type IdType = "BVN" | "NIN";
+
+export interface DirectorInfo {
+  name: string;
+  designation: string;
+}
+
+export interface BusinessInfo {
+  businessName: string;
+  registeredAddress: string;
+  cacNumber: string;
+  directors: DirectorInfo[];
+  certificateOfIncorporation: File | null;
+  boardResolution: File | null;
+}
+
+export interface SignupFormState {
+  role: UserType | null;
+  idType: IdType | null;
+  idNumber: string;
+  businessInfo: BusinessInfo;
+  passcode: string;
+  transactionPin: string;
+}
+
 export interface BusinessAccount {
   id: string;
   businessName: string;
@@ -160,6 +188,10 @@ export interface AgentRecord {
   transactionCountToday: number;
   terminalWithdrawalsToday: number;
   commissionBalance: number;
+  assignment?: {
+    businessOrMerchant: string;
+    task?: string;
+  };
 }
 
 export type AroTransactionType = "Payment" | "Transfer" | "Cashout";
@@ -175,17 +207,15 @@ export interface AroTransactionRecord {
   status: TransactionStatus;
 }
 
-export interface CommissionBySource {
-  payments: number;
-  transfer: number;
-  cashout: number;
-}
-
-export interface AgentCommission {
+// Aggregated per-agent performance metrics, derived from aroTransactions.
+export interface AgentPerformanceRow {
   agentId: string;
   agentName: string;
-  transactionVolume: number;
-  totalCommission: number;
-  breakdown: CommissionBySource;
+  businessName: string;
+  totalTransactionCount: number;
+  totalTransactionVolume: number; // sum of all transaction amounts
+  totalWithdrawals: number; // count of type === "Cashout"
+  totalTransfers: number; // count of type === "Transfer"
+  lastActivity: string | null; // ISO date of most recent transaction, or null
 }
 

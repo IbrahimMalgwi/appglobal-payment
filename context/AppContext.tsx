@@ -7,6 +7,11 @@ import { BusinessAccount, UserType } from "@/lib/types";
 interface AppContextValue {
   userType: UserType;
   setUserType: (type: UserType) => void;
+  // Role captured when a user completes the sign-up wizard this session.
+  // null until they sign up — the login screen uses this to decide between the
+  // real login form and the demo quick-access shortcuts.
+  signedUpRole: UserType | null;
+  setSignedUpRole: (role: UserType | null) => void;
   accounts: BusinessAccount[];
   selectedAccount: BusinessAccount | null;
   selectAccount: (id: string) => void;
@@ -23,6 +28,7 @@ const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [userType, setUserType] = useState<UserType>(currentUser.userType);
+  const [signedUpRole, setSignedUpRole] = useState<UserType | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string>(businessAccounts[0]?.id ?? "");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -35,6 +41,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: AppContextValue = {
     userType,
     setUserType,
+    signedUpRole,
+    setSignedUpRole,
     accounts: businessAccounts,
     selectedAccount,
     selectAccount: setSelectedAccountId,

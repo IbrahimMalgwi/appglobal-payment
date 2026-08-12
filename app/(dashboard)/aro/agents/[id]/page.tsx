@@ -2,13 +2,13 @@
 
 import { Suspense, useMemo } from "react";
 import { useParams, useSearchParams, notFound } from "next/navigation";
-import { Mail, Phone, MapPin, Landmark } from "lucide-react";
+import { Mail, Phone, MapPin, Landmark, Briefcase } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
 import { Card } from "@/components/ui/Card";
 import { Badge, statusTone } from "@/components/ui/Badge";
 import { Table, Column } from "@/components/ui/Table";
-import { getAgentById, aroTransactions, agentCommissions } from "@/lib/mock-data";
+import { getAgentById, aroTransactions } from "@/lib/mock-data";
 import { AroTransactionRecord } from "@/lib/types";
 import { formatDate, formatNaira, initials } from "@/lib/format";
 
@@ -22,8 +22,6 @@ function AgentProfileContent() {
     () => (agent ? aroTransactions.filter((t) => t.agentId === agent.id) : []),
     [agent]
   );
-  const commission = agentCommissions.find((c) => c.agentId === agent?.id);
-
   if (!agent) return notFound();
 
   const txnColumns: Column<AroTransactionRecord>[] = [
@@ -63,6 +61,18 @@ function AgentProfileContent() {
           <div className="flex items-center gap-2 text-sm text-ink-600 sm:col-span-2">
             <MapPin size={15} className="shrink-0 text-ink-400" /> {agent.address}
           </div>
+          {/* Assignment is read-only here — editing happens from the Agent Management list. */}
+          <div className="flex items-center gap-2 text-sm text-ink-600 sm:col-span-2 lg:col-span-4">
+            <Briefcase size={15} className="shrink-0 text-ink-400" />
+            {agent.assignment ? (
+              <span>
+                Assigned to <span className="font-semibold text-ink-900">{agent.assignment.businessOrMerchant}</span>
+                {agent.assignment.task ? ` — ${agent.assignment.task}` : ""}
+              </span>
+            ) : (
+              <span className="text-ink-400">Unassigned</span>
+            )}
+          </div>
         </div>
       </Card>
 
@@ -72,7 +82,6 @@ function AgentProfileContent() {
             { key: "overview", label: "Overview" },
             { key: "terminals", label: "Terminals" },
             { key: "transactions", label: "Transactions" },
-            { key: "commission", label: "Commission" },
           ]}
           defaultTab="overview"
         />
@@ -154,34 +163,6 @@ function AgentProfileContent() {
         </Card>
       )}
 
-      {tab === "commission" && commission && (
-        <Card className="p-5">
-          <div className="mb-5 flex items-center justify-between">
-            <p className="text-sm font-semibold text-ink-700">Commission breakdown</p>
-            <p className="font-display text-xl font-bold text-ink-900">{formatNaira(commission.totalCommission)}</p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-xl bg-surface p-4">
-              <p className="text-xs text-ink-400">Payments</p>
-              <p className="font-display text-lg font-bold text-ink-900">
-                {formatNaira(commission.breakdown.payments)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-surface p-4">
-              <p className="text-xs text-ink-400">Transfer</p>
-              <p className="font-display text-lg font-bold text-ink-900">
-                {formatNaira(commission.breakdown.transfer)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-surface p-4">
-              <p className="text-xs text-ink-400">Cashout</p>
-              <p className="font-display text-lg font-bold text-ink-900">
-                {formatNaira(commission.breakdown.cashout)}
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
     </div>
   );
 }

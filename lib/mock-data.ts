@@ -1,12 +1,11 @@
 import {
   AccountRecord,
-  AgentCommission,
+  AgentPerformanceRow,
   AgentRecord,
   AroInfo,
   AroTransactionRecord,
   BillCategory,
   BusinessAccount,
-  CommissionBySource,
   CurrentUser,
   DisputeRecord,
   PosTransferRecord,
@@ -219,6 +218,7 @@ export const agents: AgentRecord[] = [
     transactionCountToday: 64,
     terminalWithdrawalsToday: 12,
     commissionBalance: 6_240.5,
+    assignment: { businessOrMerchant: "Doe Retail Ventures", task: "POS terminal support & reconciliation" },
   },
   {
     id: "agt_2",
@@ -235,6 +235,7 @@ export const agents: AgentRecord[] = [
     transactionCountToday: 51,
     terminalWithdrawalsToday: 9,
     commissionBalance: 4_890.0,
+    assignment: { businessOrMerchant: "Doe Logistics Ltd", task: "Merchant onboarding" },
   },
   {
     id: "agt_3",
@@ -251,6 +252,7 @@ export const agents: AgentRecord[] = [
     transactionCountToday: 97,
     terminalWithdrawalsToday: 20,
     commissionBalance: 9_120.75,
+    assignment: { businessOrMerchant: "Ikeja City Mall Hub" },
   },
   {
     id: "agt_4",
@@ -343,23 +345,48 @@ export function getAroSummary() {
   return { activeAgents, totalVolumeToday, totalCommissionToday, activityRate };
 }
 
-export const aroCommissionSummary = {
-  total: 12_691.98,
-  bySource: {
-    payments: 6_845.4,
-    transfer: 3_920.1,
-    cashout: 1_926.48,
-  } as CommissionBySource,
+// --- ARO settlement account: the officer's own earnings/commissions/payouts ---
+
+export const aroSettlementAccount: AccountRecord = {
+  id: "acct_aro_settlement",
+  accountName: `${aroOfficer.name} — Settlement`,
+  accountNumber: "9022110045",
+  accountType: "Current",
+  availableBalance: 348_920.35,
+  currentBalance: 361_420.35,
+  status: "active",
+  currency: "NGN",
 };
 
-export const agentCommissions: AgentCommission[] = agents.map((a, i) => ({
-  agentId: a.id,
-  agentName: a.name,
-  transactionVolume: a.transactionVolumeToday * 6, // rough 7-day proxy for demo purposes
-  totalCommission: a.commissionBalance,
-  breakdown: {
-    payments: Math.round(a.commissionBalance * 0.55 * 100) / 100,
-    transfer: Math.round(a.commissionBalance * 0.3 * 100) / 100,
-    cashout: Math.round(a.commissionBalance * 0.15 * 100) / 100,
-  },
-}));
+export const aroSettlementTransactions: Transaction[] = [
+  { id: "set_1", date: daysAgo(0, 9, 12), kind: "TRANSFER", description: "Commission payout — daily settlement", reference: ref("STL", 1), amount: 18_420.5, direction: "CREDIT", status: "COMPLETED" },
+  { id: "set_2", date: daysAgo(1, 9, 12), kind: "TRANSFER", description: "Commission payout — daily settlement", reference: ref("STL", 2), amount: 21_050.0, direction: "CREDIT", status: "COMPLETED" },
+  { id: "set_3", date: daysAgo(2, 14, 40), kind: "WITHDRAWAL", description: "Payout to bank — GTBank", reference: ref("STL", 3), amount: 150_000.0, direction: "DEBIT", status: "COMPLETED" },
+  { id: "set_4", date: daysAgo(3, 9, 12), kind: "TRANSFER", description: "Commission payout — daily settlement", reference: ref("STL", 4), amount: 16_980.75, direction: "CREDIT", status: "COMPLETED" },
+  { id: "set_5", date: daysAgo(4, 11, 5), kind: "VAT", description: "Service fee adjustment", reference: ref("STL", 5), amount: 1_250.0, direction: "DEBIT", status: "COMPLETED" },
+  { id: "set_6", date: daysAgo(5, 9, 12), kind: "TRANSFER", description: "Commission payout — daily settlement", reference: ref("STL", 6), amount: 19_640.2, direction: "CREDIT", status: "COMPLETED" },
+  { id: "set_7", date: daysAgo(6, 16, 30), kind: "TRANSFER", description: "Bonus — network activity incentive", reference: ref("STL", 7), amount: 12_500.0, direction: "CREDIT", status: "PENDING" },
+  { id: "set_8", date: daysAgo(7, 9, 12), kind: "TRANSFER", description: "Commission payout — daily settlement", reference: ref("STL", 8), amount: 17_310.45, direction: "CREDIT", status: "COMPLETED" },
+];
+
+// --- Aggregated per-agent performance, derived from aroTransactions ---
+
+export function getAgentPerformanceRows(): AgentPerformanceRow[] {
+  return agents.map((agent) => {
+    const txns = aroTransactions.filter((t) => t.agentId === agent.id);
+    const lastActivity = txns.reduce<string | null>(
+      (latest, t) => (!latest || new Date(t.date) > new Date(latest) ? t.date : latest),
+      null
+    );
+    return {
+      agentId: agent.id,
+      agentName: agent.name,
+      businessName: agent.businessName,
+      totalTransactionCount: txns.length,
+      totalTransactionVolume: txns.reduce((sum, t) => sum + t.amount, 0),
+      totalWithdrawals: txns.filter((t) => t.type === "Cashout").length,
+      totalTransfers: txns.filter((t) => t.type === "Transfer").length,
+      lastActivity,
+    };
+  });
+}
