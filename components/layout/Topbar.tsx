@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, Settings, LogOut, Menu } from "lucide-react";
+import { Settings, LogOut, Menu } from "lucide-react";
 import Link from "next/link";
 import { AccountSwitcher } from "./AccountSwitcher";
+import { NotificationsMenu } from "./NotificationsMenu";
 import { useApp } from "@/context/AppContext";
 import { initials, userTypeLabel } from "@/lib/format";
 
@@ -23,18 +24,14 @@ export function Topbar() {
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-4">
-        <button
-          aria-label="Notifications"
-          className="grid h-9 w-9 place-items-center rounded-full text-ink-500 hover:bg-surface"
-        >
-          <Bell size={18} />
-        </button>
-        <button
+        <NotificationsMenu />
+        <Link
+          href="/settings"
           aria-label="Settings"
           className="hidden h-9 w-9 place-items-center rounded-full text-ink-500 hover:bg-surface sm:grid"
         >
           <Settings size={18} />
-        </button>
+        </Link>
         <Link
           href="/login"
           aria-label="Log out"

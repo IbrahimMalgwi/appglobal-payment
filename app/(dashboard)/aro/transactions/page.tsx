@@ -8,6 +8,7 @@ import { Badge, statusTone } from "@/components/ui/Badge";
 import { agents, aroTransactions } from "@/lib/mock-data";
 import { AroTransactionRecord, AroTransactionType } from "@/lib/types";
 import { formatDate, formatNaira } from "@/lib/format";
+import { useRequireAccess } from "@/components/access/RequireAccess";
 
 type DateRange = "all" | "today" | "7days" | "30days";
 
@@ -20,6 +21,7 @@ const dateRanges: { key: DateRange; label: string }[] = [
 ];
 
 export default function AroTransactionMonitoringPage() {
+  const allowed = useRequireAccess("aro");
   const [agentId, setAgentId] = useState("ALL");
   const [type, setType] = useState<AroTransactionType | "ALL">("ALL");
   const [range, setRange] = useState<DateRange>("all");
@@ -59,6 +61,8 @@ export default function AroTransactionMonitoringPage() {
     { header: "Amount", align: "right", render: (t) => <span className="font-semibold">{formatNaira(t.amount)}</span> },
     { header: "Status", render: (t) => <Badge tone={statusTone(t.status)}>{t.status}</Badge> },
   ];
+
+  if (!allowed) return null;
 
   return (
     <div>

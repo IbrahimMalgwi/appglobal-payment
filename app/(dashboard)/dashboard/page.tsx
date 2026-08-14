@@ -1,12 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Eye, ArrowLeftRight, Landmark, Gift, Users, MoreVertical, Phone, MessageCircle } from "lucide-react";
+import { Eye, ArrowLeftRight, Landmark, Gift, Users, MoreVertical, Phone, MessageCircle, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useApp } from "@/context/AppContext";
-import { assignedAro, cashbackBalance, referralBalance, transactions } from "@/lib/mock-data";
+import { assignedAro, cashbackBalance, personalAccount, referralBalance, transactions } from "@/lib/mock-data";
 import { formatNaira, formatDate, initials } from "@/lib/format";
+import { useRequireAccess } from "@/components/access/RequireAccess";
+import { useToast } from "@/context/ToastContext";
+import { apiPost } from "@/lib/api-client";
 
 const quickActions = [
   { label: "Transfers", sub: "Send fast transfers", icon: ArrowLeftRight, href: "/transfers/apppay" },
@@ -14,8 +19,34 @@ const quickActions = [
 ];
 
 export default function DashboardPage() {
+  const allowed = useRequireAccess("dashboard");
   const { userType, selectedAccount, userName } = useApp();
+  const { showToast } = useToast();
   const recent = transactions.slice(0, 5);
+
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function handleSendMessage() {
+    if (!message.trim()) {
+      showToast("Type a message before sending.", "error");
+      return;
+    }
+    setSending(true);
+    try {
+      await apiPost("/api/messages/aro", { text: message });
+      setMessageOpen(false);
+      setMessage("");
+      showToast(`Message sent to ${assignedAro.name}.`);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Couldn't send your message. Please try again.", "error");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (!allowed) return null;
 
   return (
     <div>
@@ -39,7 +70,7 @@ export default function DashboardPage() {
           </div>
           <div className="mb-1 flex items-center gap-2">
             <span className="font-display text-3xl font-extrabold text-ink-900">
-              {formatNaira(userType === "business" ? selectedAccount?.balance ?? 0 : 128_450.75)}
+              {formatNaira(userType === "business" ? selectedAccount?.balance ?? 0 : personalAccount.availableBalance)}
             </span>
             <Eye size={18} className="text-ink-400" />
           </div>
@@ -48,7 +79,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-xs text-ink-400">Account number</p>
               <p className="text-sm font-semibold text-ink-900">
-                {userType === "business" ? selectedAccount?.accountNumber : "5888494452"}
+                {userType === "business" ? selectedAccount?.accountNumber : personalAccount.accountNumber}
               </p>
             </div>
             <div>
@@ -126,7 +157,10 @@ export default function DashboardPage() {
               >
                 <Phone size={14} /> Call
               </a>
-              <button className="flex items-center justify-center gap-1.5 rounded-lg bg-brand-500 py-2 text-xs font-semibold text-white hover:bg-brand-600">
+              <button
+                onClick={() => setMessageOpen(true)}
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-brand-500 py-2 text-xs font-semibold text-white hover:bg-brand-600"
+              >
                 <MessageCircle size={14} /> Message
               </button>
             </div>
@@ -155,6 +189,26 @@ export default function DashboardPage() {
           ))}
         </ul>
       </Card>
+
+      <Modal open={messageOpen} onClose={() => setMessageOpen(false)} title={`Message ${assignedAro.name}`}>
+        <div className="space-y-4">
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Write a message to your Agent Relationship Officer"
+            rows={4}
+            className="w-full resize-none rounded-lg border border-surface-border px-3 py-2.5 text-sm focus:border-brand-400 focus:outline-none"
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={sending}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 py-3 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-70"
+          >
+            {sending && <Loader2 size={16} className="animate-spin" />}
+            {sending ? "Sending..." : "Send Message"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

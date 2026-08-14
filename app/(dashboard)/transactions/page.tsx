@@ -6,11 +6,13 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { TransactionsTable } from "@/components/modules/TransactionsTable";
 import { transactions, topFiveTransactions } from "@/lib/mock-data";
 import { TransactionKind, TransactionStatus } from "@/lib/types";
+import { useRequireAccess } from "@/components/access/RequireAccess";
 
 const kinds: (TransactionKind | "ALL")[] = ["ALL", "TRANSFER", "WITHDRAWAL", "AIRTIME", "DATA", "BILL", "CARD", "VAT"];
 const statuses: (TransactionStatus | "ALL")[] = ["ALL", "COMPLETED", "PENDING", "FAILED"];
 
 export default function TransactionsPage() {
+  const allowed = useRequireAccess("transactions");
   const [view, setView] = useState<"top5" | "all">("top5");
   const [search, setSearch] = useState("");
   const [date, setDate] = useState("");
@@ -28,6 +30,8 @@ export default function TransactionsPage() {
       return true;
     });
   }, [search, date, kind, status]);
+
+  if (!allowed) return null;
 
   return (
     <div>

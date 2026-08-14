@@ -11,10 +11,12 @@ import { Badge, statusTone } from "@/components/ui/Badge";
 import { posTransfers } from "@/lib/mock-data";
 import { PosTransferRecord } from "@/lib/types";
 import { formatDate, formatNaira } from "@/lib/format";
+import { useRequireAccess } from "@/components/access/RequireAccess";
 
 const posTabs = [
   { href: "/pos/transfer", label: "POS Transfer" },
   { href: "/pos/withdrawal", label: "POS Withdrawal" },
+  { href: "/pos/terminal-request", label: "Request for POS" },
 ];
 
 function PosTransferContent() {
@@ -65,6 +67,8 @@ function PosTransferContent() {
 }
 
 export default function PosTransferPage() {
+  const allowed = useRequireAccess("pos");
+  if (!allowed) return null;
   return (
     <Suspense fallback={null}>
       <PosTransferContent />

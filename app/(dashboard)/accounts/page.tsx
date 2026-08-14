@@ -7,10 +7,14 @@ import { Badge, statusTone } from "@/components/ui/Badge";
 import { useApp } from "@/context/AppContext";
 import { getAccountsForUser } from "@/lib/mock-data";
 import { formatNaira } from "@/lib/format";
+import { useRequireAccess } from "@/components/access/RequireAccess";
 
 export default function AccountsPage() {
+  const allowed = useRequireAccess("accounts");
   const { userType } = useApp();
   const accounts = getAccountsForUser(userType);
+
+  if (!allowed) return null;
 
   return (
     <div>

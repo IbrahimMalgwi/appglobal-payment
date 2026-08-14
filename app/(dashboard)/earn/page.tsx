@@ -10,6 +10,7 @@ import { ComingSoon } from "@/components/ui/ComingSoon";
 import { referralBalance, referralCode, referralStats } from "@/lib/mock-data";
 import { formatNaira } from "@/lib/format";
 import { useToast } from "@/context/ToastContext";
+import { useRequireAccess } from "@/components/access/RequireAccess";
 
 function EarnMoneyContent() {
   const { showToast } = useToast();
@@ -107,6 +108,8 @@ function EarnMoneyContent() {
 }
 
 export default function EarnMoneyPage() {
+  const allowed = useRequireAccess("earnMoney");
+  if (!allowed) return null;
   return (
     <Suspense fallback={null}>
       <EarnMoneyContent />

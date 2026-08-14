@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { BarChart, BarChartDatum } from "@/components/modules/BarChart";
 import { agents, getAroSummary } from "@/lib/mock-data";
 import { formatNaira } from "@/lib/format";
+import { useRequireAccess } from "@/components/access/RequireAccess";
 
 type Metric = "volume" | "count" | "terminal" | "commission";
 
@@ -39,9 +40,12 @@ function buildChartData(metric: Metric): BarChartDatum[] {
 }
 
 export default function AroOverviewPage() {
+  const allowed = useRequireAccess("aro");
   const [metric, setMetric] = useState<Metric>("volume");
   const summary = getAroSummary();
   const chartData = buildChartData(metric);
+
+  if (!allowed) return null;
 
   const summaryCards = [
     { label: "Active Agents", value: `${summary.activeAgents}`, icon: Users },

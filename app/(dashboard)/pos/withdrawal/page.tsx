@@ -1,3 +1,5 @@
+"use client";
+
 import { PageHeader } from "@/components/layout/PageHeader";
 import { RouteTabs } from "@/components/ui/RouteTabs";
 import { Card } from "@/components/ui/Card";
@@ -6,10 +8,12 @@ import { Badge, statusTone } from "@/components/ui/Badge";
 import { posWithdrawals } from "@/lib/mock-data";
 import { PosWithdrawalRecord } from "@/lib/types";
 import { formatDate, formatNaira } from "@/lib/format";
+import { useRequireAccess } from "@/components/access/RequireAccess";
 
 const posTabs = [
   { href: "/pos/transfer", label: "POS Transfer" },
   { href: "/pos/withdrawal", label: "POS Withdrawal" },
+  { href: "/pos/terminal-request", label: "Request for POS" },
 ];
 
 const columns: Column<PosWithdrawalRecord>[] = [
@@ -22,6 +26,8 @@ const columns: Column<PosWithdrawalRecord>[] = [
 ];
 
 export default function PosWithdrawalPage() {
+  const allowed = useRequireAccess("pos");
+  if (!allowed) return null;
   return (
     <div>
       <PageHeader title="POS" description="Withdrawals made through POS devices attached to your business account." />

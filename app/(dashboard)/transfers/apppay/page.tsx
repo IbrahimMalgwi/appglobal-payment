@@ -9,6 +9,8 @@ import { TransfersTable } from "@/components/modules/TransfersTable";
 import { appPayTransfers as seedTransfers } from "@/lib/mock-data";
 import { TransferRecord } from "@/lib/types";
 import { useToast } from "@/context/ToastContext";
+import { useRequireAccess } from "@/components/access/RequireAccess";
+import { apiPost } from "@/lib/api-client";
 
 const tabs = [
   { href: "/transfers/apppay", label: "AppPay Transfer" },
@@ -16,6 +18,7 @@ const tabs = [
 ];
 
 export default function AppPayTransferPage() {
+  const allowed = useRequireAccess("transfers");
   const { showToast } = useToast();
   const [records, setRecords] = useState<TransferRecord[]>(seedTransfers);
   const [open, setOpen] = useState(false);
@@ -23,7 +26,7 @@ export default function AppPayTransferPage() {
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  function handleSend() {
+  async function handleSend() {
     if (!recipient.trim()) {
       showToast("Enter an AppPay username, tag, or account to continue.", "error");
       return;
@@ -35,24 +38,25 @@ export default function AppPayTransferPage() {
     }
 
     setSubmitting(true);
-    // Hardcoded/mock processing — no real backend call.
-    setTimeout(() => {
-      const record: TransferRecord = {
-        id: `ap_${Date.now()}`,
-        recipient: `${recipient} (AppPay)`,
-        bank: "AppPay Wallet",
+    try {
+      const record = await apiPost<TransferRecord>("/api/transfers", {
+        network: "apppay",
+        recipient,
         amount: parsedAmount,
-        date: new Date().toISOString(),
-        status: "COMPLETED",
-      };
+      });
       setRecords((prev) => [record, ...prev]);
-      setSubmitting(false);
       setOpen(false);
       setRecipient("");
       setAmount("");
       showToast(`₦${parsedAmount.toLocaleString()} sent to ${recipient} via AppPay — instant, no fees.`);
-    }, 700);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Transfer failed. Please try again.", "error");
+    } finally {
+      setSubmitting(false);
+    }
   }
+
+  if (!allowed) return null;
 
   return (
     <div>

@@ -11,6 +11,7 @@ import { Table, Column } from "@/components/ui/Table";
 import { getAgentById, aroTransactions } from "@/lib/mock-data";
 import { AroTransactionRecord } from "@/lib/types";
 import { formatDate, formatNaira, initials } from "@/lib/format";
+import { useRequireAccess } from "@/components/access/RequireAccess";
 
 function AgentProfileContent() {
   const params = useParams<{ id: string }>();
@@ -61,7 +62,7 @@ function AgentProfileContent() {
           <div className="flex items-center gap-2 text-sm text-ink-600 sm:col-span-2">
             <MapPin size={15} className="shrink-0 text-ink-400" /> {agent.address}
           </div>
-          {/* Assignment is read-only here — editing happens from the Agent Management list. */}
+          {/* Assignment is informational only — set from seed data, no in-app editing UI. */}
           <div className="flex items-center gap-2 text-sm text-ink-600 sm:col-span-2 lg:col-span-4">
             <Briefcase size={15} className="shrink-0 text-ink-400" />
             {agent.assignment ? (
@@ -168,6 +169,8 @@ function AgentProfileContent() {
 }
 
 export default function AgentProfilePage() {
+  const allowed = useRequireAccess("aro");
+  if (!allowed) return null;
   return (
     <Suspense fallback={null}>
       <AgentProfileContent />

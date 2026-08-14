@@ -134,6 +134,43 @@ export interface AccountRecord {
   currentBalance: number;
   status: AccountStatus;
   currency: string;
+  // Extended details surfaced on Settings → Account Details. Optional because not every
+  // account (e.g. a personal account) carries business registration fields.
+  tierLevel?: number;
+  tierStatus?: string;
+  cacNumber?: string;
+  tinNumber?: string;
+  phone?: string;
+  businessAddress?: string;
+  businessEmail?: string;
+  businessWebsite?: string;
+}
+
+// Account tiers shown on Settings → Account Limit (current tier + upgrade targets).
+export interface AccountTier {
+  level: number;
+  name: string;
+  dailyTransactionLimit: number;
+  maxAccountBalance: number;
+}
+
+// --- Settings → Help & Support ---
+
+export interface FaqItem {
+  question: string;
+  answer: string;
+}
+
+export interface SupportInfo {
+  phone: string;
+  hours: string;
+  email: string;
+}
+
+export interface SupportMessage {
+  id: string;
+  text: string;
+  date: string;
 }
 
 export type BillCategoryId =
@@ -163,6 +200,19 @@ export interface ChatMessage {
   from: "user" | "bot";
   text: string;
   timestamp: string;
+}
+
+// --- Topbar notifications ---
+
+export type NotificationTone = "info" | "success" | "warning";
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  date: string; // ISO string
+  tone: NotificationTone;
+  read: boolean;
 }
 
 // --- Agent Relationship Officer (ARO) dashboard ---

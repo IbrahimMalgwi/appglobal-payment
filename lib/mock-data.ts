@@ -1,5 +1,6 @@
 import {
   AccountRecord,
+  AccountTier,
   AgentPerformanceRow,
   AgentRecord,
   AroInfo,
@@ -8,8 +9,12 @@ import {
   BusinessAccount,
   CurrentUser,
   DisputeRecord,
+  FaqItem,
+  NotificationItem,
+  PosDevice,
   PosTransferRecord,
   PosWithdrawalRecord,
+  SupportInfo,
   Transaction,
   TransferRecord,
   UserType,
@@ -53,21 +58,23 @@ function ref(prefix: string, n: number) {
 
 // --- Accounts (replaces the old Accounts > All Transactions / Daily Summary) ---
 
+// Single source of truth for the personal user's account, reused by the Accounts page,
+// Settings → Account Details, and the dashboard balance card so the numbers can't drift.
+export const personalAccount: AccountRecord = {
+  id: "acct_personal",
+  accountName: currentUser.name,
+  accountNumber: "5888494452",
+  accountType: "Personal",
+  availableBalance: 128_450.75,
+  currentBalance: 128_450.75,
+  status: "active",
+  currency: "NGN",
+};
+
 export function getAccountsForUser(userType: UserType): AccountRecord[] {
   if (userType === "aro") return [];
   if (userType === "personal") {
-    return [
-      {
-        id: "acct_personal",
-        accountName: currentUser.name,
-        accountNumber: "5888494452",
-        accountType: "Personal",
-        availableBalance: 128_450.75,
-        currentBalance: 128_450.75,
-        status: "active",
-        currency: "NGN",
-      },
-    ];
+    return [personalAccount];
   }
   return businessAccounts.map((b, i) => ({
     id: b.id,
@@ -180,8 +187,8 @@ export function getBillHistory(categoryId: string): Transaction[] {
 // --- Assigned Agent Relationship Officer, shown on the customer dashboard ---
 
 export const assignedAro: AroInfo = {
-  name: "Mora Faridah Aminu",
-  phone: "+234 803 123 4567",
+  name: "Chikwudi Chiroma Adekunle",
+  phone: "+234 801 234 5678",
   photoInitials: "MF",
 };
 
@@ -358,6 +365,13 @@ export const aroSettlementAccount: AccountRecord = {
   currency: "NGN",
 };
 
+// The bank account an ARO withdraws (pays out) their settlement balance to.
+export const aroPayoutBank = {
+  bankName: "GTBank",
+  accountNumber: "0123456789",
+  accountName: aroOfficer.name,
+};
+
 export const aroSettlementTransactions: Transaction[] = [
   { id: "set_1", date: daysAgo(0, 9, 12), kind: "TRANSFER", description: "Commission payout — daily settlement", reference: ref("STL", 1), amount: 18_420.5, direction: "CREDIT", status: "COMPLETED" },
   { id: "set_2", date: daysAgo(1, 9, 12), kind: "TRANSFER", description: "Commission payout — daily settlement", reference: ref("STL", 2), amount: 21_050.0, direction: "CREDIT", status: "COMPLETED" },
@@ -367,6 +381,150 @@ export const aroSettlementTransactions: Transaction[] = [
   { id: "set_6", date: daysAgo(5, 9, 12), kind: "TRANSFER", description: "Commission payout — daily settlement", reference: ref("STL", 6), amount: 19_640.2, direction: "CREDIT", status: "COMPLETED" },
   { id: "set_7", date: daysAgo(6, 16, 30), kind: "TRANSFER", description: "Bonus — network activity incentive", reference: ref("STL", 7), amount: 12_500.0, direction: "CREDIT", status: "PENDING" },
   { id: "set_8", date: daysAgo(7, 9, 12), kind: "TRANSFER", description: "Commission payout — daily settlement", reference: ref("STL", 8), amount: 17_310.45, direction: "CREDIT", status: "COMPLETED" },
+];
+
+// --- Settings: account tiers (limits + upgrade targets) ---
+
+export const accountTiers: AccountTier[] = [
+  { level: 1, name: "Tier 1", dailyTransactionLimit: 50_000, maxAccountBalance: 300_000 },
+  { level: 2, name: "Tier 2", dailyTransactionLimit: 200_000, maxAccountBalance: 500_000 },
+  { level: 3, name: "Tier 3", dailyTransactionLimit: 5_000_000, maxAccountBalance: 50_000_000 },
+];
+
+export function getTierByLevel(level: number): AccountTier | undefined {
+  return accountTiers.find((t) => t.level === level);
+}
+
+// --- Settings: Account Details ---
+// Reuses the existing account records and layers the registration/contact fields shown on
+// the mobile Account Details screen. Business users get one entry per linked account so the
+// page can page between them; personal/ARO get a single record.
+
+const personalAccountDetails: AccountRecord = {
+  ...personalAccount,
+  tierLevel: 1,
+  tierStatus: "Verified",
+  phone: "+234 802 555 0110",
+  businessEmail: currentUser.email,
+};
+
+export function getAccountDetailsForUser(userType: UserType): AccountRecord[] {
+  if (userType === "aro") {
+    return [
+      {
+        ...aroSettlementAccount,
+        tierLevel: 2,
+        tierStatus: "Verified",
+        phone: "+234 803 555 0199",
+        businessEmail: aroOfficer.email,
+      },
+    ];
+  }
+  if (userType === "personal") {
+    return [personalAccountDetails];
+  }
+  return businessAccounts.map((b, i) => ({
+    id: b.id,
+    accountName: b.businessName,
+    accountNumber: b.accountNumber,
+    accountType: "Business",
+    availableBalance: b.balance,
+    currentBalance: b.balance,
+    status: "active",
+    currency: "NGN",
+    tierLevel: 2,
+    tierStatus: "Verified",
+    cacNumber: i === 0 ? "RC-1029384" : "RC-2938475",
+    tinNumber: i === 0 ? "TIN-22981045" : "TIN-30847712",
+    phone: i === 0 ? "+234 803 111 2200" : "+234 803 111 3300",
+    businessAddress: b.address,
+    businessEmail: i === 0 ? "hello@doeretail.ng" : "ops@doelogistics.ng",
+    businessWebsite: i === 0 ? "www.doeretail.ng" : "www.doelogistics.ng",
+  }));
+}
+
+// --- POS: a business's own POS terminals (distinct from an ARO's agents' terminals) ---
+
+export const businessPosDevices: PosDevice[] = [
+  { id: "pd_1", serial: "POS-2291", location: "Doe Retail — Marina Rd", status: "active", lastTransactionDate: daysAgo(0, 13, 10) },
+  { id: "pd_2", serial: "POS-4410", location: "Doe Retail — Allen Ave", status: "active", lastTransactionDate: daysAgo(1, 16, 40) },
+  { id: "pd_3", serial: "POS-1188", location: "Warehouse — Ikeja", status: "inactive", lastTransactionDate: daysAgo(8, 9, 0) },
+];
+
+// --- Settings: Help & Support ---
+
+export const supportInfo: SupportInfo = {
+  phone: "+234 700 123 4567",
+  hours: "Mon–Fri, 8:00 AM – 6:00 PM (WAT)",
+  email: "support@appglobalpay.ng",
+};
+
+export const faqs: FaqItem[] = [
+  {
+    question: "How do I upgrade my account tier?",
+    answer:
+      "Go to Settings → Account Limit and tap the Upgrade button next to the tier you want. You'll be guided through the verification steps required for that tier.",
+  },
+  {
+    question: "How long do transfers take?",
+    answer:
+      "AppPay transfers are instant with no fees. Interbank transfers usually settle within a few minutes, and never later than 24 hours.",
+  },
+  {
+    question: "What do I do if a POS transaction fails but I was debited?",
+    answer:
+      "Open a dispute from the Dispute page. Pick the transaction type, enter the reference and amount, and our team will review and reverse it if confirmed.",
+  },
+  {
+    question: "How is my daily transaction limit calculated?",
+    answer:
+      "Your limit is set by your current account tier and resets at midnight. You can see your exact limit under Settings → Account Limit.",
+  },
+];
+
+// --- Topbar notifications ---
+
+export const notifications: NotificationItem[] = [
+  {
+    id: "ntf_1",
+    title: "Transfer successful",
+    message: "₦1,950.00 sent to Ada Okafor via AppPay.",
+    date: daysAgo(0, 17, 26),
+    tone: "success",
+    read: false,
+  },
+  {
+    id: "ntf_2",
+    title: "Dispute update",
+    message: "Your POS dispute POS-DSP-001 is under review.",
+    date: daysAgo(0, 11, 5),
+    tone: "info",
+    read: false,
+  },
+  {
+    id: "ntf_3",
+    title: "Low balance warning",
+    message: "Your available balance is running low. Top up to avoid failed payments.",
+    date: daysAgo(1, 9, 12),
+    tone: "warning",
+    read: false,
+  },
+  {
+    id: "ntf_4",
+    title: "Bill payment successful",
+    message: "Electricity bill of ₦4,351.03 paid to Ikeja Electric.",
+    date: daysAgo(3, 15, 28),
+    tone: "success",
+    read: true,
+  },
+  {
+    id: "ntf_5",
+    title: "New login detected",
+    message: "A new sign-in to your account was detected. If this wasn't you, reset your passcode.",
+    date: daysAgo(5, 8, 2),
+    tone: "info",
+    read: true,
+  },
 ];
 
 // --- Aggregated per-agent performance, derived from aroTransactions ---

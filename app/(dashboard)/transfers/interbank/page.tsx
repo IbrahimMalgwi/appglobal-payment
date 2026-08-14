@@ -9,6 +9,8 @@ import { TransfersTable } from "@/components/modules/TransfersTable";
 import { interbankTransfers as seedTransfers } from "@/lib/mock-data";
 import { TransferRecord } from "@/lib/types";
 import { useToast } from "@/context/ToastContext";
+import { useRequireAccess } from "@/components/access/RequireAccess";
+import { apiPost } from "@/lib/api-client";
 
 const tabs = [
   { href: "/transfers/apppay", label: "AppPay Transfer" },
@@ -16,6 +18,7 @@ const tabs = [
 ];
 
 export default function InterbankTransferPage() {
+  const allowed = useRequireAccess("transfers");
   const { showToast } = useToast();
   const [records, setRecords] = useState<TransferRecord[]>(seedTransfers);
   const [open, setOpen] = useState(false);
@@ -24,7 +27,7 @@ export default function InterbankTransferPage() {
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  function handleSend() {
+  async function handleSend() {
     if (!recipient.trim() || !bank.trim()) {
       showToast("Enter a recipient and bank to continue.", "error");
       return;
@@ -36,25 +39,27 @@ export default function InterbankTransferPage() {
     }
 
     setSubmitting(true);
-    // Hardcoded/mock processing — no real backend call.
-    setTimeout(() => {
-      const record: TransferRecord = {
-        id: `ib_${Date.now()}`,
+    try {
+      const record = await apiPost<TransferRecord>("/api/transfers", {
+        network: "interbank",
         recipient,
         bank,
         amount: parsedAmount,
-        date: new Date().toISOString(),
-        status: "COMPLETED",
-      };
+      });
       setRecords((prev) => [record, ...prev]);
-      setSubmitting(false);
       setOpen(false);
       setRecipient("");
       setBank("");
       setAmount("");
       showToast(`₦${parsedAmount.toLocaleString()} sent to ${recipient} at ${bank}.`);
-    }, 700);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Transfer failed. Please try again.", "error");
+    } finally {
+      setSubmitting(false);
+    }
   }
+
+  if (!allowed) return null;
 
   return (
     <div>

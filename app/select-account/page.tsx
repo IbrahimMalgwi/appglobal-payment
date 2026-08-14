@@ -1,20 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Search, LogOut } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { formatNaira, initials } from "@/lib/format";
+import { dashboardPathForRole } from "@/lib/onboarding";
 
 export default function SelectAccountPage() {
-  const { accounts, selectAccount, userName, userEmail } = useApp();
+  const { accounts, selectAccount, userName, userEmail, userType } = useApp();
   const [query, setQuery] = useState("");
   const router = useRouter();
+
+  // Account selection is a business-only step — send other roles to their own home
+  // rather than showing them the business list.
+  useEffect(() => {
+    if (userType !== "business") router.replace(dashboardPathForRole(userType));
+  }, [userType, router]);
 
   const filtered = accounts.filter((a) =>
     a.businessName.toLowerCase().includes(query.toLowerCase())
   );
+
+  if (userType !== "business") return null;
 
   function handleSelect(id: string) {
     selectAccount(id);

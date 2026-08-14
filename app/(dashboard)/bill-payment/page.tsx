@@ -8,8 +8,11 @@ import { Card } from "@/components/ui/Card";
 import { TransactionsTable } from "@/components/modules/TransactionsTable";
 import { billCategories, getBillHistory } from "@/lib/mock-data";
 import { useToast } from "@/context/ToastContext";
+import { useRequireAccess } from "@/components/access/RequireAccess";
+import { apiPost } from "@/lib/api-client";
 
 export default function BillPaymentPage() {
+  const allowed = useRequireAccess("billPayment");
   const { showToast } = useToast();
   const [showAll, setShowAll] = useState(false);
   const [selected, setSelected] = useState(billCategories[0].id);
@@ -21,7 +24,7 @@ export default function BillPaymentPage() {
   const selectedCategory = billCategories.find((c) => c.id === selected)!;
   const history = useMemo(() => getBillHistory(selected), [selected]);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!accountNumber.trim()) {
       showToast("Enter an account, meter, or phone number.", "error");
       return;
@@ -32,14 +35,23 @@ export default function BillPaymentPage() {
       return;
     }
     setSubmitting(true);
-    // Hardcoded/mock processing — no real backend call.
-    setTimeout(() => {
-      setSubmitting(false);
+    try {
+      await apiPost("/api/bill-payment", {
+        category: selected,
+        accountNumber,
+        amount: parsedAmount,
+      });
       setAccountNumber("");
       setAmount("");
       showToast(`${selectedCategory.label} payment of ₦${parsedAmount.toLocaleString()} successful.`);
-    }, 700);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Payment failed. Please try again.", "error");
+    } finally {
+      setSubmitting(false);
+    }
   }
+
+  if (!allowed) return null;
 
   return (
     <div>

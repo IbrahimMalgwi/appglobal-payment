@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { MessageCircle, X, Send } from "lucide-react";
 import { clsx } from "clsx";
 import { ChatMessage } from "@/lib/types";
+import { apiPost } from "@/lib/api-client";
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -13,23 +14,6 @@ const INITIAL_MESSAGES: ChatMessage[] = [
     timestamp: new Date().toISOString(),
   },
 ];
-
-// Placeholder responder — swap this for a real API call (e.g. POST /api/chat) when the
-// chatbot backend is available. Keep the same signature: (history) => Promise<string>.
-async function getMockBotReply(userText: string): Promise<string> {
-  await new Promise((r) => setTimeout(r, 600));
-  const text = userText.toLowerCase();
-  if (text.includes("transfer")) {
-    return "You can send money under Transfers → AppPay Transfer (instant, in-network) or Interbank Transfer (any other bank).";
-  }
-  if (text.includes("dispute")) {
-    return "You can raise or track a dispute under the Dispute page — it covers both POS and Withdrawal issues.";
-  }
-  if (text.includes("bill") || text.includes("airtime") || text.includes("data")) {
-    return "Bill Payment now covers Airtime, Data, Electricity, Cable TV, and more — just pick a category and pay.";
-  }
-  return "Thanks for your message — a real support agent isn't connected yet, but this is where that reply will appear.";
-}
 
 export function ChatbotWidget() {
   const [open, setOpen] = useState(false);
@@ -56,7 +40,13 @@ export function ChatbotWidget() {
     setInput("");
     setSending(true);
 
-    const replyText = await getMockBotReply(text);
+    let replyText: string;
+    try {
+      const data = await apiPost<{ reply: string }>("/api/chat", { message: text });
+      replyText = data.reply;
+    } catch {
+      replyText = "Sorry, I couldn't reach the assistant just now. Please try again.";
+    }
     setMessages((prev) => [
       ...prev,
       { id: `b_${Date.now()}`, from: "bot", text: replyText, timestamp: new Date().toISOString() },
