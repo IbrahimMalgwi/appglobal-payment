@@ -9,6 +9,7 @@ import { useApp } from "@/context/AppContext";
 import { useToast } from "@/context/ToastContext";
 import { dashboardPathForRole } from "@/lib/onboarding";
 import { sendMockOtp, maskDestination } from "@/lib/mock-otp";
+import { findDemoUser } from "@/lib/demo-users";
 import { OtpVerification } from "@/components/auth/OtpVerification";
 import { UserType } from "@/lib/types";
 
@@ -33,11 +34,29 @@ export default function LoginPage() {
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!identifier.trim() || !passcode.trim()) {
-      showToast("Enter your email or phone and passcode to continue.", "error");
+      showToast("Enter your email and password to continue.", "error");
       return;
     }
-    // No backend: any non-empty credentials pass; the role was captured during sign-up.
-    setPendingRole(signedUpRole ?? "personal");
+
+    // No real backend: validate against the fixed demo accounts. A user who just came
+    // through the sign-up wizard (signedUpRole set, no matching demo account) can still
+    // log back in with whatever they set up.
+    const demo = findDemoUser(identifier);
+    let role: UserType;
+    if (demo) {
+      if (passcode !== demo.password) {
+        showToast("Incorrect email or password.", "error");
+        return;
+      }
+      role = demo.role;
+    } else if (signedUpRole) {
+      role = signedUpRole;
+    } else {
+      showToast("We couldn't find an account with those details. Try one of the demo accounts below.", "error");
+      return;
+    }
+
+    setPendingRole(role);
     issueOtp();
     setStep("otp");
   }
@@ -49,12 +68,6 @@ export default function LoginPage() {
     }
     setUserType(pendingRole);
     router.push(dashboardPathForRole(pendingRole));
-  }
-
-  // Quick-switch shortcut used for reviewing the app — demoted below the real form.
-  function quickAccess(role: UserType) {
-    setUserType(role);
-    router.push(dashboardPathForRole(role));
   }
 
   return (
@@ -92,7 +105,7 @@ export default function LoginPage() {
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-navy-100">Email or phone</label>
+                <label className="mb-1.5 block text-sm font-semibold text-navy-100">Email</label>
                 <input
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
@@ -125,32 +138,6 @@ export default function LoginPage() {
                 Create an account
               </Link>
             </p>
-
-            <div className="mt-8 border-t border-white/10 pt-6">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-navy-300">
-                or jump straight into a demo profile
-              </p>
-              <div className="space-y-3">
-                <button
-                  onClick={() => quickAccess("personal")}
-                  className="block w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-left text-sm font-semibold text-white hover:border-brand-400"
-                >
-                  Continue as Personal user
-                </button>
-                <button
-                  onClick={() => quickAccess("business")}
-                  className="block w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-left text-sm font-semibold text-white hover:border-brand-400"
-                >
-                  Continue as Business user
-                </button>
-                <button
-                  onClick={() => quickAccess("aro")}
-                  className="block w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-left text-sm font-semibold text-white hover:border-brand-400"
-                >
-                  Continue as Agent Relationship Officer
-                </button>
-              </div>
-            </div>
           </>
         )}
       </div>
