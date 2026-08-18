@@ -1,4 +1,4 @@
-export type UserType = "personal" | "business" | "aro";
+export type UserType = "personal" | "business" | "aro" | "bdo";
 
 // --- Sign-up onboarding wizard ---
 
@@ -52,7 +52,20 @@ export type TransactionKind =
   | "BILL"
   | "CARD";
 export type TransactionDirection = "DEBIT" | "CREDIT";
-export type TransactionStatus = "COMPLETED" | "PENDING" | "FAILED";
+export type TransactionStatus = "COMPLETED" | "PENDING" | "FAILED" | "REVERSED" | "CANCELLED" | "DISPUTED";
+
+export interface TransactionBeneficiary {
+  name: string;
+  accountNumber?: string;
+  bankName?: string;
+  bankCode?: string;
+}
+
+export interface TransactionBiller {
+  billerName: string;
+  customerNumber: string;
+  serviceType: string;
+}
 
 export interface Transaction {
   id: string;
@@ -61,10 +74,15 @@ export interface Transaction {
   description: string;
   reference: string;
   amount: number;
+  fee?: number;
   balanceBefore?: number;
   balanceAfter?: number;
   direction: TransactionDirection;
   status: TransactionStatus;
+  // Populated for TRANSFER transactions — who the money went to.
+  beneficiary?: TransactionBeneficiary;
+  // Populated for BILL/AIRTIME/DATA transactions — what was paid for.
+  biller?: TransactionBiller;
 }
 
 export interface TransferRecord {
@@ -215,23 +233,42 @@ export interface NotificationItem {
   read: boolean;
 }
 
-// --- Agent Relationship Officer (ARO) dashboard ---
+// --- Agent Relationship Officer (ARO) + Business Development Officer (BDO) dashboards ---
+//
+// Hierarchy: BDO -> ARO -> Agent -> Business Account(s) -> POS Terminal(s) -> Transactions.
+// An ARO can only ever query data for their own aroId (enforced in lib/aro-analytics.ts,
+// not just hidden in the UI); a BDO can pass any aroId since they view across the org.
 
-export type AgentStatus = "active" | "inactive" | "pending";
+export type AroOfficerStatus = "active" | "inactive";
+
+export interface AroOfficerRecord {
+  id: string;
+  name: string;
+  email: string;
+  status: AroOfficerStatus;
+  cluster: string;
+  manager: string;
+  onboardingDate: string; // ISO
+}
+
+export interface BdoOfficerRecord {
+  name: string;
+  email: string;
+}
+
+export type AgentStatus = "active" | "inactive" | "pending" | "removed";
 
 export interface AgentRecord {
   id: string;
+  aroId: string;
   name: string;
   businessName: string;
   phone: string;
   email: string;
   address: string;
   status: AgentStatus;
-  terminals: {
-    total: number;
-    active: number;
-    inactive: number;
-  };
+  onboardingDate: string; // ISO — drives "newly onboarded" / referral metrics
+  businessAccounts: AccountRecord[];
   bankName: string;
   accountNumber: string;
   transactionVolumeToday: number; // Naira
@@ -244,28 +281,162 @@ export interface AgentRecord {
   };
 }
 
-export type AroTransactionType = "Payment" | "Transfer" | "Cashout";
+export interface PosTerminalRecord {
+  id: string;
+  agentId: string;
+  accountId: string;
+  serial: string;
+  status: "active" | "inactive";
+  transactionCount: number;
+  transactionVolume: number;
+  transferInCount: number;
+  transferInVolume: number;
+  cardWithdrawalCount: number;
+  cardWithdrawalVolume: number;
+  billPaymentCount: number;
+  billPaymentVolume: number;
+  lastTransactionDate: string | null; // ISO
+  commissionGenerated: number;
+}
+
+// Derived (not stored) — replaces the old fixed { total, active, inactive } summary.
+export interface TerminalCounts {
+  total: number;
+  active: number;
+  inactive: number;
+}
+
+export type AroTransactionType = "TransferIn" | "CardWithdrawal" | "BillPayment";
+export type BillCategoryType = "Airtime" | "Data" | "Hospital" | "Utility" | "CableTV";
 
 export interface AroTransactionRecord {
   id: string;
   date: string;
+  aroId: string;
   agentId: string;
   agentName: string;
+  accountId: string;
+  posTerminalId: string;
+  reference: string;
   type: AroTransactionType;
+  billCategory?: BillCategoryType; // set only when type === "BillPayment"
   amount: number;
   direction: TransactionDirection;
   status: TransactionStatus;
 }
 
-// Aggregated per-agent performance metrics, derived from aroTransactions.
+// Aggregated per-agent performance metrics, derived from aroTransactions/commissions.
 export interface AgentPerformanceRow {
   agentId: string;
   agentName: string;
   businessName: string;
+  aroId: string;
+  status: AgentStatus;
   totalTransactionCount: number;
   totalTransactionVolume: number; // sum of all transaction amounts
-  totalWithdrawals: number; // count of type === "Cashout"
-  totalTransfers: number; // count of type === "Transfer"
+  transferInCount: number;
+  transferInVolume: number;
+  cardWithdrawalCount: number;
+  cardWithdrawalVolume: number;
+  billPaymentCount: number;
+  billPaymentVolume: number;
+  posTerminalCount: number;
+  activeTerminalCount: number;
+  commissionTotal: number;
+  commissionPending: number;
+  commissionPaid: number;
   lastActivity: string | null; // ISO date of most recent transaction, or null
+}
+
+// Aggregated per-POS-terminal performance, derived from aroTransactions.
+export interface PosPerformanceRow {
+  terminalId: string;
+  serial: string;
+  status: PosTerminalRecord["status"];
+  agentId: string;
+  agentName: string;
+  accountId: string;
+  accountName: string;
+  transactionCount: number;
+  transactionVolume: number;
+  lastTransactionDate: string | null;
+  commissionGenerated: number;
+}
+
+// --- Commissions ---
+
+export type CommissionStatus = "paid" | "pending";
+
+export interface CommissionRecord {
+  id: string;
+  aroId: string;
+  agentId: string;
+  agentName: string;
+  posTerminalId: string;
+  transactionId: string;
+  transactionType: AroTransactionType;
+  amount: number;
+  status: CommissionStatus;
+  date: string; // ISO
+  paidDate?: string; // ISO
+}
+
+// Single place commission rates live, so no component hardcodes a rate — see FRD note
+// on aggregation logic. Expressed as a fraction of transaction amount.
+export const commissionRates: Record<AroTransactionType, number> = {
+  TransferIn: 0.005,
+  CardWithdrawal: 0.01,
+  BillPayment: 0.015,
+};
+
+// --- Referral / onboarding bonuses ---
+
+export type ReferralBonusStatus = "pending" | "paid";
+
+export interface ReferralBonusRecord {
+  id: string;
+  aroId: string;
+  referredAgentId: string;
+  referredAgentName: string;
+  onboardingDate: string; // ISO
+  status: AgentStatus; // current status of the referred agent
+  bonusAmount: number;
+  bonusStatus: ReferralBonusStatus;
+  paymentDate?: string; // ISO, set once bonusStatus === "paid"
+}
+
+// --- ARO/BDO notifications (distinct from the customer-facing NotificationItem above) ---
+
+export type AroNotificationType =
+  | "agent-inactive"
+  | "milestone"
+  | "new-agent"
+  | "commission-generated"
+  | "pos-inactive"
+  | "referral-bonus";
+
+export interface NotificationRecord {
+  id: string;
+  // Present -> targets that one ARO. Absent -> org-wide, surfaced on the BDO's feed too.
+  aroId?: string;
+  type: AroNotificationType;
+  message: string;
+  relatedAgentId?: string;
+  timestamp: string; // ISO
+  read: boolean;
+  actionLink?: string; // route to navigate to on click
+}
+
+// --- Audit log ---
+
+export interface AuditLogRecord {
+  id: string;
+  user: string; // who performed the action, e.g. the ARO's name
+  action: string;
+  recordType: string;
+  recordId: string;
+  timestamp: string; // ISO
+  previousValue: string;
+  newValue: string;
 }
 

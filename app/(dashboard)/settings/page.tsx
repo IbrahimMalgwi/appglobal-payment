@@ -10,6 +10,7 @@ import { useApp } from "@/context/AppContext";
 import { getAccountDetailsForUser, getTierByLevel } from "@/lib/mock-data";
 import { formatNaira } from "@/lib/format";
 import { useToast } from "@/context/ToastContext";
+import { useRequireAccess } from "@/components/access/RequireAccess";
 
 function DetailRow({ label, value }: { label: string; value?: string | number | null }) {
   return (
@@ -21,6 +22,7 @@ function DetailRow({ label, value }: { label: string; value?: string | number | 
 }
 
 export default function AccountDetailsPage() {
+  const allowed = useRequireAccess("accountDetails");
   const { userType } = useApp();
   const { showToast } = useToast();
   const accounts = getAccountDetailsForUser(userType);
@@ -28,6 +30,8 @@ export default function AccountDetailsPage() {
 
   const account = accounts[index];
   const tier = account?.tierLevel ? getTierByLevel(account.tierLevel) : undefined;
+
+  if (!allowed) return null;
 
   return (
     <div>

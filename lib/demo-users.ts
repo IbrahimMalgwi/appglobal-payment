@@ -13,6 +13,7 @@ export const DEMO_USERS: DemoUser[] = [
   { email: "user@appglobal.com", password: "123456", role: "personal", label: "Personal user" },
   { email: "agent@appglobal.com", password: "123456", role: "business", label: "Agent" },
   { email: "aro@appglobal.com", password: "123456", role: "aro", label: "Agent Relationship Officer" },
+  { email: "bdo@appglobal.com", password: "123456", role: "bdo", label: "Business Development Officer" },
 ];
 
 export function findDemoUser(identifier: string): DemoUser | undefined {

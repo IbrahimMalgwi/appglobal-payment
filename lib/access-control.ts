@@ -19,9 +19,12 @@ export type FeatureKey =
   | "pos"
   | "billPayment"
   | "earnMoney"
+  | "accountDetails"
+  | "accountLimit"
   | "accountLimitUpgrade"
   | "settlementWithdraw"
-  | "aro";
+  | "aro"
+  | "bdo";
 
 export const ACCESS_MATRIX: Record<FeatureKey, UserType[]> = {
   // Customer dashboard/home — ARO has their own Overview home instead.
@@ -35,12 +38,19 @@ export const ACCESS_MATRIX: Record<FeatureKey, UserType[]> = {
   pos: ["business"],
   billPayment: ["personal", "business"],
   earnMoney: ["personal", "business"],
-  // Account Limit page is viewable by all; only the Upgrade action is gated.
+  // ARO/BDO aren't account holders — no personal/business balance to view or tier to
+  // upgrade — so both settings pages are removed for them entirely, not just the button.
+  accountDetails: ["personal", "business"],
+  accountLimit: ["personal", "business"],
+  // Redundant with accountLimit now excluding ARO/BDO, but kept as the narrower gate on the
+  // Upgrade action itself for personal/business.
   accountLimitUpgrade: ["personal", "business"],
   // The only way an ARO moves money out is withdrawing their settlement balance.
   settlementWithdraw: ["aro"],
   // ARO-specific network pages (Agents, Performance, Transaction Monitoring, Settlement).
   aro: ["aro"],
+  // BDO org-wide oversight pages.
+  bdo: ["bdo"],
 };
 
 export function canAccess(userType: UserType, feature: FeatureKey): boolean {

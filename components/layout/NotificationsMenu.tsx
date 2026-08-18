@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell, CheckCheck } from "lucide-react";
 import { clsx } from "clsx";
-import { notifications as seedNotifications } from "@/lib/mock-data";
-import { NotificationItem } from "@/lib/types";
+import { notifications as seedCustomerNotifications, getNotificationsForAro, getNotificationsForBdo } from "@/lib/mock-data";
+import { AroNotificationType, NotificationItem } from "@/lib/types";
 import { formatDate } from "@/lib/format";
+import { useApp } from "@/context/AppContext";
 
 const toneDot: Record<NotificationItem["tone"], string> = {
   info: "bg-brand-500",
@@ -13,8 +16,77 @@ const toneDot: Record<NotificationItem["tone"], string> = {
   warning: "bg-amber-500",
 };
 
+const aroTypeTitle: Record<AroNotificationType, string> = {
+  "agent-inactive": "Agent inactive",
+  milestone: "Milestone reached",
+  "new-agent": "New agent onboarded",
+  "commission-generated": "Commission generated",
+  "pos-inactive": "POS inactive",
+  "referral-bonus": "Referral bonus",
+};
+
+const aroTypeTone: Record<AroNotificationType, NotificationItem["tone"]> = {
+  "agent-inactive": "warning",
+  milestone: "success",
+  "new-agent": "info",
+  "commission-generated": "success",
+  "pos-inactive": "warning",
+  "referral-bonus": "success",
+};
+
+interface DisplayNotification {
+  id: string;
+  title: string;
+  message: string;
+  date: string;
+  tone: NotificationItem["tone"];
+  read: boolean;
+  actionLink?: string;
+}
+
 export function NotificationsMenu() {
-  const [items, setItems] = useState<NotificationItem[]>(seedNotifications);
+  const { userType, currentAroId } = useApp();
+  const router = useRouter();
+  const isRoleScoped = userType === "aro" || userType === "bdo";
+  const viewAllHref = userType === "aro" ? "/aro/notifications" : userType === "bdo" ? "/bdo/notifications" : null;
+
+  const seedItems = useMemo<DisplayNotification[]>(() => {
+    if (userType === "aro") {
+      return getNotificationsForAro(currentAroId).map((n) => ({
+        id: n.id,
+        title: aroTypeTitle[n.type],
+        message: n.message,
+        date: n.timestamp,
+        tone: aroTypeTone[n.type],
+        read: n.read,
+        actionLink: n.actionLink,
+      }));
+    }
+    if (userType === "bdo") {
+      return getNotificationsForBdo().map((n) => ({
+        id: n.id,
+        title: aroTypeTitle[n.type],
+        message: n.message,
+        date: n.timestamp,
+        tone: aroTypeTone[n.type],
+        read: n.read,
+        actionLink: n.actionLink,
+      }));
+    }
+    return seedCustomerNotifications.map((n) => ({
+      id: n.id,
+      title: n.title,
+      message: n.message,
+      date: n.date,
+      tone: n.tone,
+      read: n.read,
+    }));
+  }, [userType, currentAroId]);
+
+  // Lazy initializer only — this app has no cross-page store, so if the role changes mid
+  // session (demo role switch) the list simply keeps whatever was read/unread locally,
+  // same convention as every other locally-held mock list in this app.
+  const [items, setItems] = useState<DisplayNotification[]>(() => seedItems);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -39,6 +111,14 @@ export function NotificationsMenu() {
 
   function markAllRead() {
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+  }
+
+  function handleItemClick(n: DisplayNotification) {
+    setItems((prev) => prev.map((i) => (i.id === n.id ? { ...i, read: true } : i)));
+    if (n.actionLink) {
+      setOpen(false);
+      router.push(n.actionLink);
+    }
   }
 
   return (
@@ -72,17 +152,34 @@ export function NotificationsMenu() {
               <li className="px-4 py-10 text-center text-sm text-ink-400">No notifications.</li>
             ) : (
               items.map((n) => (
-                <li key={n.id} className={clsx("flex gap-3 px-4 py-3", !n.read && "bg-brand-50/50")}>
-                  <span className={clsx("mt-1.5 h-2 w-2 shrink-0 rounded-full", toneDot[n.tone])} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-ink-900">{n.title}</p>
-                    <p className="mt-0.5 text-xs text-ink-500">{n.message}</p>
-                    <p className="mt-1 text-[11px] text-ink-400">{formatDate(n.date)}</p>
-                  </div>
+                <li key={n.id}>
+                  <button
+                    onClick={() => handleItemClick(n)}
+                    className={clsx(
+                      "flex w-full gap-3 px-4 py-3 text-left hover:bg-surface",
+                      !n.read && "bg-brand-50/50"
+                    )}
+                  >
+                    <span className={clsx("mt-1.5 h-2 w-2 shrink-0 rounded-full", toneDot[n.tone])} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-ink-900">{n.title}</p>
+                      <p className="mt-0.5 text-xs text-ink-500">{n.message}</p>
+                      <p className="mt-1 text-[11px] text-ink-400">{formatDate(n.date)}</p>
+                    </div>
+                  </button>
                 </li>
               ))
             )}
           </ul>
+          {isRoleScoped && viewAllHref && (
+            <Link
+              href={viewAllHref}
+              onClick={() => setOpen(false)}
+              className="block border-t border-surface-border px-4 py-3 text-center text-xs font-semibold text-brand-600 hover:bg-surface"
+            >
+              View all notifications
+            </Link>
+          )}
         </div>
       )}
     </div>

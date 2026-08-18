@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState, ReactNode } from "react";
-import { businessAccounts, currentUser, aroOfficer } from "@/lib/mock-data";
+import { businessAccounts, currentUser, selfAro, bdoOfficer } from "@/lib/mock-data";
 import { BusinessAccount, UserType } from "@/lib/types";
 
 interface AppContextValue {
@@ -22,6 +22,11 @@ interface AppContextValue {
   closeMobileNav: () => void;
   userName: string;
   userEmail: string;
+  // The id of the ARO record backing this session when userType === "aro". Every ARO-scoped
+  // data-access call (getAgentPerformanceRows, getAroPortfolioSummary, ...) must read this
+  // from context rather than a URL param, so an ARO can never view another ARO's data by
+  // tampering with the address bar.
+  currentAroId: string;
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -51,8 +56,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     mobileNavOpen,
     openMobileNav: () => setMobileNavOpen(true),
     closeMobileNav: () => setMobileNavOpen(false),
-    userName: userType === "aro" ? aroOfficer.name : currentUser.name,
-    userEmail: userType === "aro" ? aroOfficer.email : currentUser.email,
+    userName: userType === "aro" ? selfAro.name : userType === "bdo" ? bdoOfficer.name : currentUser.name,
+    userEmail: userType === "aro" ? selfAro.email : userType === "bdo" ? bdoOfficer.email : currentUser.email,
+    currentAroId: selfAro.id,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

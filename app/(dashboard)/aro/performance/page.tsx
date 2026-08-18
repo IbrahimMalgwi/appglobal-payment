@@ -1,40 +1,105 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { Suspense, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Table, Column } from "@/components/ui/Table";
-import { getAgentPerformanceRows } from "@/lib/mock-data";
-import { AgentPerformanceRow } from "@/lib/types";
-import { formatDate, formatNaira } from "@/lib/format";
+import { Badge, statusTone } from "@/components/ui/Badge";
+import { FilterBar, FilterFieldDef } from "@/components/modules/FilterBar";
+import { useResolvedDateRange } from "@/components/modules/DateRangeFilter";
+import { useFilterParams } from "@/lib/filter-state";
+import { getAgentPerformanceRows, getTerminalsForAccount } from "@/lib/aro-analytics";
+import { getAgentsForAro } from "@/lib/mock-data";
+import { AgentPerformanceRow, AgentStatus, AroTransactionType } from "@/lib/types";
+import { formatDate, formatNaira, formatTxnType } from "@/lib/format";
+import { useApp } from "@/context/AppContext";
 import { useRequireAccess } from "@/components/access/RequireAccess";
 
-type View = "cumulative" | "individual";
 type Row = AgentPerformanceRow & { id: string };
 
-const views: { key: View; label: string }[] = [
-  { key: "cumulative", label: "Cumulative" },
-  { key: "individual", label: "Individual" },
-];
+const txnTypes: AroTransactionType[] = ["TransferIn", "CardWithdrawal", "BillPayment"];
+const statuses: AgentStatus[] = ["active", "inactive", "pending", "removed"];
+const fieldKeys = ["agentId", "type", "accountId", "posTerminalId", "status"] as const;
 
 function lastActivityLabel(iso: string | null): string {
   return iso ? formatDate(iso) : "—";
 }
 
-export default function AroPerformancePage() {
-  const allowed = useRequireAccess("aro");
+function AroPerformanceContent() {
+  const { currentAroId } = useApp();
   const router = useRouter();
-  const [view, setView] = useState<View>("cumulative");
+  const { values, setValue, setValues, dateRange, setDateRange, clearAll } = useFilterParams(fieldKeys, "thisMonth");
+  const resolvedRange = useResolvedDateRange(dateRange);
 
-  const rows = useMemo<Row[]>(
-    () => getAgentPerformanceRows().map((r) => ({ ...r, id: r.agentId })),
-    []
+  const aroAgents = useMemo(() => getAgentsForAro(currentAroId), [currentAroId]);
+  const accountOptions = useMemo(
+    () =>
+      aroAgents
+        .filter((a) => values.agentId === "ALL" || a.id === values.agentId)
+        .flatMap((a) => a.businessAccounts.map((acc) => ({ value: acc.id, label: `${acc.accountName} (${a.name})` }))),
+    [aroAgents, values.agentId]
   );
-  const [selectedAgentId, setSelectedAgentId] = useState(rows[0]?.agentId ?? "");
-  const selected = rows.find((r) => r.agentId === selectedAgentId);
+  const posOptions = useMemo(
+    () =>
+      aroAgents
+        .filter((a) => values.agentId === "ALL" || a.id === values.agentId)
+        .flatMap((a) =>
+          a.businessAccounts
+            .filter((acc) => values.accountId === "ALL" || acc.id === values.accountId)
+            .flatMap((acc) => getTerminalsForAccount(acc.id).map((p) => ({ value: p.id, label: p.serial })))
+        ),
+    [aroAgents, values.agentId, values.accountId]
+  );
+
+  const rows = useMemo<Row[]>(() => {
+    return getAgentPerformanceRows(currentAroId, {
+      dateRange: resolvedRange,
+      agentId: values.agentId !== "ALL" ? values.agentId : undefined,
+      transactionType: values.type !== "ALL" ? (values.type as AroTransactionType) : undefined,
+      accountId: values.accountId !== "ALL" ? values.accountId : undefined,
+      posTerminalId: values.posTerminalId !== "ALL" ? values.posTerminalId : undefined,
+      agentStatus: values.status !== "ALL" ? (values.status as AgentStatus) : undefined,
+    }).map((r) => ({ ...r, id: r.agentId }));
+  }, [currentAroId, resolvedRange, values]);
+
+  const fields: FilterFieldDef[] = [
+    {
+      key: "agentId",
+      label: "Agent",
+      value: values.agentId,
+      onChange: (v) => setValues({ agentId: v, accountId: "ALL", posTerminalId: "ALL" }),
+      options: aroAgents.map((a) => ({ value: a.id, label: a.name })),
+    },
+    {
+      key: "type",
+      label: "Transaction",
+      value: values.type,
+      onChange: (v) => setValue("type", v),
+      options: txnTypes.map((t) => ({ value: t, label: formatTxnType(t) })),
+    },
+    {
+      key: "accountId",
+      label: "Account",
+      value: values.accountId,
+      onChange: (v) => setValues({ accountId: v, posTerminalId: "ALL" }),
+      options: accountOptions,
+    },
+    {
+      key: "posTerminalId",
+      label: "POS Terminal",
+      value: values.posTerminalId,
+      onChange: (v) => setValue("posTerminalId", v),
+      options: posOptions,
+    },
+    {
+      key: "status",
+      label: "Status",
+      value: values.status,
+      onChange: (v) => setValue("status", v),
+      options: statuses.map((s) => ({ value: s, label: s })),
+    },
+  ];
 
   const columns: Column<Row>[] = [
     {
@@ -46,31 +111,74 @@ export default function AroPerformancePage() {
         </div>
       ),
     },
+    { header: "Status", render: (r) => <Badge tone={statusTone(r.status)}>{r.status}</Badge> },
     {
-      header: "Total Transactions",
+      header: "Total Txns",
       align: "right",
       sortable: true,
       sortValue: (r) => r.totalTransactionCount,
       render: (r) => <span className="font-semibold">{r.totalTransactionCount}</span>,
     },
     {
-      header: "Volume",
+      header: "Total Volume",
       align: "right",
+      sortable: true,
+      sortValue: (r) => r.totalTransactionVolume,
       render: (r) => <span className="font-semibold">{formatNaira(r.totalTransactionVolume)}</span>,
     },
     {
-      header: "Withdrawals",
+      header: "Transfer",
       align: "right",
-      sortable: true,
-      sortValue: (r) => r.totalWithdrawals,
-      render: (r) => <span>{r.totalWithdrawals}</span>,
+      hideOnMobile: true,
+      render: (r) => (
+        <span>
+          {r.transferInCount} · {formatNaira(r.transferInVolume)}
+        </span>
+      ),
     },
     {
-      header: "Transfers",
+      header: "Card",
+      align: "right",
+      hideOnMobile: true,
+      render: (r) => (
+        <span>
+          {r.cardWithdrawalCount} · {formatNaira(r.cardWithdrawalVolume)}
+        </span>
+      ),
+    },
+    {
+      header: "Bill Payment",
+      align: "right",
+      hideOnMobile: true,
+      render: (r) => (
+        <span>
+          {r.billPaymentCount} · {formatNaira(r.billPaymentVolume)}
+        </span>
+      ),
+    },
+    {
+      header: "POS Terminals",
+      align: "right",
+      hideOnMobile: true,
+      render: (r) => (
+        <span>
+          {r.activeTerminalCount}/{r.posTerminalCount} active
+        </span>
+      ),
+    },
+    {
+      header: "Commission",
       align: "right",
       sortable: true,
-      sortValue: (r) => r.totalTransfers,
-      render: (r) => <span>{r.totalTransfers}</span>,
+      sortValue: (r) => r.commissionTotal,
+      render: (r) => (
+        <div>
+          <p className="font-semibold">{formatNaira(r.commissionTotal)}</p>
+          <p className="text-[11px] text-ink-400">
+            {formatNaira(r.commissionPaid)} paid · {formatNaira(r.commissionPending)} pending
+          </p>
+        </div>
+      ),
     },
     {
       header: "Last Activity",
@@ -81,92 +189,37 @@ export default function AroPerformancePage() {
     },
   ];
 
-  if (!allowed) return null;
-
   return (
     <div>
-      <PageHeader
-        title="Performance"
-        description="Aggregated transaction performance across your agent network."
-      />
+      <PageHeader title="Agent Performance" description="Cumulative and filterable performance across your agent network." />
 
-      <div className="mb-5 flex flex-wrap gap-2">
-        {views.map((v) => (
-          <button
-            key={v.key}
-            onClick={() => setView(v.key)}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-              view === v.key ? "bg-brand-500 text-white" : "bg-surface text-ink-600 hover:bg-brand-50"
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
+      <FilterBar dateRange={{ value: dateRange, onChange: setDateRange }} fields={fields} onClearAll={clearAll} />
 
-      {view === "cumulative" && (
-        <Card>
-          <div className="px-5 pt-5">
-            <h2 className="font-display text-lg font-bold text-ink-900">All Agents</h2>
-            <p className="text-sm text-ink-400">Click a row to open that agent&apos;s activity log.</p>
-          </div>
-          <div className="mt-4">
-            <Table
-              columns={columns}
-              rows={rows}
-              pageSize={5}
-              onRowClick={(r) => router.push(`/aro/agents/${r.agentId}?tab=transactions`)}
-              emptyMessage="No agent performance data yet."
-            />
-          </div>
-        </Card>
-      )}
-
-      {view === "individual" && (
-        <Card className="p-6">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-lg font-bold text-ink-900">Individual Performance</h2>
-            <select
-              value={selectedAgentId}
-              onChange={(e) => setSelectedAgentId(e.target.value)}
-              className="rounded-lg border border-surface-border bg-surface-card px-3 py-2.5 text-sm focus:border-brand-400 focus:outline-none"
-            >
-              {rows.map((r) => (
-                <option key={r.agentId} value={r.agentId}>
-                  {r.agentName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {selected && (
-            <>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <StatCard label="Total transactions" value={`${selected.totalTransactionCount}`} />
-                <StatCard label="Total volume" value={formatNaira(selected.totalTransactionVolume)} />
-                <StatCard label="Withdrawals" value={`${selected.totalWithdrawals}`} />
-                <StatCard label="Transfers" value={`${selected.totalTransfers}`} />
-                <StatCard label="Last activity" value={lastActivityLabel(selected.lastActivity)} />
-              </div>
-              <Link
-                href={`/aro/agents/${selected.agentId}?tab=transactions`}
-                className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700"
-              >
-                View full activity log <ArrowRight size={15} />
-              </Link>
-            </>
-          )}
-        </Card>
-      )}
+      <Card>
+        <div className="px-5 pt-5">
+          <h2 className="font-display text-lg font-bold text-ink-900">Agents</h2>
+          <p className="text-sm text-ink-400">Click a row to open that agent&apos;s activity log.</p>
+        </div>
+        <div className="mt-4">
+          <Table
+            columns={columns}
+            rows={rows}
+            pageSize={8}
+            onRowClick={(r) => router.push(`/aro/agents/${r.agentId}?tab=transactions`)}
+            emptyMessage="No agent performance data matches these filters."
+          />
+        </div>
+      </Card>
     </div>
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+export default function AroPerformancePage() {
+  const allowed = useRequireAccess("aro");
+  if (!allowed) return null;
   return (
-    <div className="rounded-xl bg-surface p-4">
-      <p className="text-xs text-ink-400">{label}</p>
-      <p className="mt-1 font-display text-lg font-bold text-ink-900">{value}</p>
-    </div>
+    <Suspense fallback={null}>
+      <AroPerformanceContent />
+    </Suspense>
   );
 }

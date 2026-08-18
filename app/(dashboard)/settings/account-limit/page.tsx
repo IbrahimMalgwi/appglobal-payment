@@ -12,18 +12,23 @@ import { formatNaira } from "@/lib/format";
 import { useToast } from "@/context/ToastContext";
 import { canAccess } from "@/lib/access-control";
 import { apiPost } from "@/lib/api-client";
+import { useRequireAccess } from "@/components/access/RequireAccess";
 
 export default function AccountLimitPage() {
+  const allowed = useRequireAccess("accountLimit");
   const { userType } = useApp();
   const { showToast } = useToast();
   const [upgrading, setUpgrading] = useState<number | null>(null);
 
-  // Every role can view this page; only the Upgrade action itself is gated.
+  // Only personal/business can even reach this page; the Upgrade action is a narrower gate
+  // within it (both currently resolve the same for those roles, kept separate on purpose).
   const canUpgrade = canAccess(userType, "accountLimitUpgrade");
   const currentLevel = getAccountDetailsForUser(userType)[0]?.tierLevel ?? 1;
 
   // Show the current tier and every tier above it.
   const visibleTiers = accountTiers.filter((t) => t.level >= currentLevel);
+
+  if (!allowed) return null;
 
   async function handleUpgrade(level: number) {
     setUpgrading(level);

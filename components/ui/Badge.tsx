@@ -32,12 +32,18 @@ export function statusTone(status: string): Tone {
       return "success";
     case "pending":
     case "open":
+    case "disputed":
       return "pending";
     case "failed":
     case "declined":
     case "rejected":
     case "inactive":
+    case "removed":
       return "danger";
+    case "reversed":
+      return "info";
+    case "cancelled":
+      return "neutral";
     default:
       return "neutral";
   }

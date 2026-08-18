@@ -1,171 +1,35 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
-import { useParams, useSearchParams, notFound } from "next/navigation";
-import { Mail, Phone, MapPin, Landmark, Briefcase } from "lucide-react";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { Tabs } from "@/components/ui/Tabs";
-import { Card } from "@/components/ui/Card";
-import { Badge, statusTone } from "@/components/ui/Badge";
-import { Table, Column } from "@/components/ui/Table";
-import { getAgentById, aroTransactions } from "@/lib/mock-data";
-import { AroTransactionRecord } from "@/lib/types";
-import { formatDate, formatNaira, initials } from "@/lib/format";
+import { Suspense, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { AgentProfileView } from "@/components/aro/AgentProfileView";
+import { getAgentById } from "@/lib/mock-data";
+import { useApp } from "@/context/AppContext";
+import { useToast } from "@/context/ToastContext";
 import { useRequireAccess } from "@/components/access/RequireAccess";
 
-function AgentProfileContent() {
+function AgentProfileGuarded() {
   const params = useParams<{ id: string }>();
-  const searchParams = useSearchParams();
-  const tab = searchParams.get("tab") ?? "overview";
+  const { currentAroId, userName } = useApp();
+  const { showToast } = useToast();
+  const router = useRouter();
 
   const agent = getAgentById(params.id);
-  const agentTxns = useMemo(
-    () => (agent ? aroTransactions.filter((t) => t.agentId === agent.id) : []),
-    [agent]
-  );
-  if (!agent) return notFound();
+  // An agent's aroId is intrinsic to the record (not attacker-controlled), so this is a real
+  // ownership check, not just a hidden nav item — an ARO can never view another ARO's agent
+  // by editing the URL. Data-access functions are scoped the same way via currentAroId.
+  const forbidden = !!agent && agent.aroId !== currentAroId;
 
-  const txnColumns: Column<AroTransactionRecord>[] = [
-    { header: "Date", render: (t) => <span className="text-ink-500">{formatDate(t.date)}</span> },
-    { header: "Type", render: (t) => <span className="font-medium text-ink-700">{t.type}</span> },
-    { header: "Amount", align: "right", render: (t) => <span className="font-semibold">{formatNaira(t.amount)}</span> },
-    { header: "Status", render: (t) => <Badge tone={statusTone(t.status)}>{t.status}</Badge> },
-  ];
+  useEffect(() => {
+    if (forbidden) {
+      showToast("That agent isn't in your portfolio.", "error");
+      router.replace("/aro/agents");
+    }
+  }, [forbidden, router, showToast]);
 
-  return (
-    <div>
-      <PageHeader title="Agent Profile" description="Full details for this agent." />
+  if (!agent || forbidden) return null;
 
-      <Card className="mb-5 p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span className="grid h-14 w-14 place-items-center rounded-full bg-navy-900 text-lg font-bold text-white">
-              {initials(agent.name)}
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="font-display text-lg font-bold text-ink-900">{agent.name}</p>
-                <Badge tone={statusTone(agent.status)}>{agent.status}</Badge>
-              </div>
-              <p className="text-sm text-ink-500">{agent.businessName}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-5 grid grid-cols-1 gap-3 border-t border-surface-border pt-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="flex items-center gap-2 text-sm text-ink-600">
-            <Phone size={15} className="shrink-0 text-ink-400" /> {agent.phone}
-          </div>
-          <div className="flex items-center gap-2 text-sm text-ink-600">
-            <Mail size={15} className="shrink-0 text-ink-400" /> {agent.email}
-          </div>
-          <div className="flex items-center gap-2 text-sm text-ink-600 sm:col-span-2">
-            <MapPin size={15} className="shrink-0 text-ink-400" /> {agent.address}
-          </div>
-          {/* Assignment is informational only — set from seed data, no in-app editing UI. */}
-          <div className="flex items-center gap-2 text-sm text-ink-600 sm:col-span-2 lg:col-span-4">
-            <Briefcase size={15} className="shrink-0 text-ink-400" />
-            {agent.assignment ? (
-              <span>
-                Assigned to <span className="font-semibold text-ink-900">{agent.assignment.businessOrMerchant}</span>
-                {agent.assignment.task ? ` — ${agent.assignment.task}` : ""}
-              </span>
-            ) : (
-              <span className="text-ink-400">Unassigned</span>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      <div className="mb-5">
-        <Tabs
-          tabs={[
-            { key: "overview", label: "Overview" },
-            { key: "terminals", label: "Terminals" },
-            { key: "transactions", label: "Transactions" },
-          ]}
-          defaultTab="overview"
-        />
-      </div>
-
-      {tab === "overview" && (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          <Card className="p-5">
-            <p className="mb-4 text-sm font-semibold text-ink-700">Today&apos;s activity</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-ink-400">Transaction volume</p>
-                <p className="font-display text-lg font-bold text-ink-900">
-                  {formatNaira(agent.transactionVolumeToday)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-ink-400">Transaction count</p>
-                <p className="font-display text-lg font-bold text-ink-900">{agent.transactionCountToday}</p>
-              </div>
-              <div>
-                <p className="text-xs text-ink-400">Terminal withdrawals</p>
-                <p className="font-display text-lg font-bold text-ink-900">{agent.terminalWithdrawalsToday}</p>
-              </div>
-              <div>
-                <p className="text-xs text-ink-400">Commission balance</p>
-                <p className="font-display text-lg font-bold text-ink-900">
-                  {formatNaira(agent.commissionBalance)}
-                </p>
-              </div>
-            </div>
-          </Card>
-          <Card className="p-5">
-            <p className="mb-4 flex items-center gap-2 text-sm font-semibold text-ink-700">
-              <Landmark size={16} /> Account information
-            </p>
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-ink-400">Bank name</p>
-                <p className="text-sm font-semibold text-ink-900">{agent.bankName}</p>
-              </div>
-              <div>
-                <p className="text-xs text-ink-400">Account number</p>
-                <p className="text-sm font-semibold text-ink-900">{agent.accountNumber}</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {tab === "terminals" && (
-        <Card className="p-5">
-          <p className="mb-4 text-sm font-semibold text-ink-700">Terminal summary</p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="rounded-xl bg-surface p-4">
-              <p className="text-xs text-ink-400">Total terminal count</p>
-              <p className="font-display text-2xl font-bold text-ink-900">{agent.terminals.total}</p>
-            </div>
-            <div className="rounded-xl bg-surface p-4">
-              <p className="text-xs text-ink-400">Active terminals</p>
-              <p className="font-display text-2xl font-bold text-success">{agent.terminals.active}</p>
-            </div>
-            <div className="rounded-xl bg-surface p-4">
-              <p className="text-xs text-ink-400">Inactive terminals</p>
-              <p className="font-display text-2xl font-bold text-danger">{agent.terminals.inactive}</p>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {tab === "transactions" && (
-        <Card>
-          <div className="px-5 pt-5">
-            <h2 className="font-display text-lg font-bold text-ink-900">{agent.name}&apos;s Transactions</h2>
-          </div>
-          <div className="mt-4">
-            <Table columns={txnColumns} rows={agentTxns} emptyMessage="No transactions from this agent yet." />
-          </div>
-        </Card>
-      )}
-
-    </div>
-  );
+  return <AgentProfileView agentId={agent.id} basePath="/aro/agents" canRemove performedBy={userName} />;
 }
 
 export default function AgentProfilePage() {
@@ -173,7 +37,7 @@ export default function AgentProfilePage() {
   if (!allowed) return null;
   return (
     <Suspense fallback={null}>
-      <AgentProfileContent />
+      <AgentProfileGuarded />
     </Suspense>
   );
 }

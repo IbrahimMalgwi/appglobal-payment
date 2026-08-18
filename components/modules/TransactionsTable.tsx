@@ -13,11 +13,13 @@ export function TransactionsTable({
   transactions,
   emptyMessage,
   showActions = true,
+  onRowClick,
 }: {
   title: string;
   transactions: Transaction[];
   emptyMessage?: ReactNode;
   showActions?: boolean;
+  onRowClick?: (t: Transaction) => void;
 }) {
   const columns: Column<Transaction>[] = [
     { header: "Date", render: (t) => <span className="text-ink-500">{formatDate(t.date)}</span> },
@@ -65,7 +67,7 @@ export function TransactionsTable({
         )}
       </div>
       <div className="mt-4">
-        <Table columns={columns} rows={transactions} emptyMessage={emptyMessage} />
+        <Table columns={columns} rows={transactions} emptyMessage={emptyMessage} onRowClick={onRowClick} />
       </div>
     </Card>
   );

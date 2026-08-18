@@ -23,7 +23,18 @@ export function initials(name: string): string {
     .join("");
 }
 
-export function userTypeLabel(userType: "personal" | "business" | "aro"): string {
+const aroTxnTypeLabels: Record<string, string> = {
+  TransferIn: "Transfer",
+  CardWithdrawal: "Card",
+  BillPayment: "Bill Payment",
+};
+
+export function formatTxnType(type: string): string {
+  return aroTxnTypeLabels[type] ?? type;
+}
+
+export function userTypeLabel(userType: "personal" | "business" | "aro" | "bdo"): string {
   if (userType === "aro") return "ARO";
+  if (userType === "bdo") return "BDO";
   return userType === "business" ? "Business" : "Personal";
 }

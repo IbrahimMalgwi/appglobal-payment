@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { RouteTabs } from "@/components/ui/RouteTabs";
 import { Modal } from "@/components/ui/Modal";
 import { TransfersTable } from "@/components/modules/TransfersTable";
 import { interbankTransfers as seedTransfers } from "@/lib/mock-data";
 import { TransferRecord } from "@/lib/types";
+import { lookupBankAccount, MOCK_BANK_REGISTRY } from "@/lib/smart-lookup";
 import { useToast } from "@/context/ToastContext";
 import { useRequireAccess } from "@/components/access/RequireAccess";
 import { apiPost } from "@/lib/api-client";
@@ -22,14 +23,37 @@ export default function InterbankTransferPage() {
   const { showToast } = useToast();
   const [records, setRecords] = useState<TransferRecord[]>(seedTransfers);
   const [open, setOpen] = useState(false);
-  const [recipient, setRecipient] = useState("");
-  const [bank, setBank] = useState("");
+
+  const [accountNumber, setAccountNumber] = useState("");
+  const [manualBank, setManualBank] = useState("");
+  const [manualName, setManualName] = useState("");
   const [amount, setAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Purely derived from accountNumber — no effect needed, never goes stale.
+  const lookupAttempted = accountNumber.length === 10;
+  const lookup = lookupAttempted ? lookupBankAccount(accountNumber) : null;
+
+  function resetForm() {
+    setAccountNumber("");
+    setManualBank("");
+    setManualName("");
+    setAmount("");
+  }
+
   async function handleSend() {
-    if (!recipient.trim() || !bank.trim()) {
-      showToast("Enter a recipient and bank to continue.", "error");
+    if (accountNumber.length !== 10) {
+      showToast("Enter a 10-digit account number.", "error");
+      return;
+    }
+    const recipient = lookup ? lookup.accountName : manualName.trim();
+    const bank = lookup ? lookup.bankName : manualBank;
+    if (!recipient) {
+      showToast("Enter the recipient's name.", "error");
+      return;
+    }
+    if (!bank) {
+      showToast("Select the recipient's bank.", "error");
       return;
     }
     const parsedAmount = Number(amount);
@@ -48,9 +72,7 @@ export default function InterbankTransferPage() {
       });
       setRecords((prev) => [record, ...prev]);
       setOpen(false);
-      setRecipient("");
-      setBank("");
-      setAmount("");
+      resetForm();
       showToast(`₦${parsedAmount.toLocaleString()} sent to ${recipient} at ${bank}.`);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Transfer failed. Please try again.", "error");
@@ -71,29 +93,67 @@ export default function InterbankTransferPage() {
         title="Interbank Transfers"
         records={records}
         ctaLabel="New Interbank Transfer"
-        onCtaClick={() => setOpen(true)}
+        onCtaClick={() => {
+          resetForm();
+          setOpen(true);
+        }}
       />
 
       <Modal open={open} onClose={() => setOpen(false)} title="Send to Another Bank">
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-ink-700">Recipient name</label>
+            <label className="mb-1.5 block text-sm font-semibold text-ink-700">Account number</label>
             <input
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-              placeholder="e.g. Ada Okafor"
+              value={accountNumber}
+              onChange={(e) => setAccountNumber(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
+              placeholder="0123456789"
+              inputMode="numeric"
               className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm focus:border-brand-400 focus:outline-none"
             />
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-ink-700">Bank</label>
-            <input
-              value={bank}
-              onChange={(e) => setBank(e.target.value)}
-              placeholder="e.g. GTBank"
-              className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm focus:border-brand-400 focus:outline-none"
-            />
-          </div>
+
+          {lookup && (
+            <div className="flex items-start gap-2 rounded-lg bg-success/10 px-3 py-2.5 text-sm text-success">
+              <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">{lookup.accountName}</p>
+                <p className="text-xs">{lookup.bankName}</p>
+              </div>
+            </div>
+          )}
+
+          {lookupAttempted && !lookup && (
+            <div className="space-y-4 rounded-lg border border-surface-border p-3">
+              <p className="text-xs text-ink-500">
+                We couldn&apos;t automatically verify this account — please select the bank.
+              </p>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-ink-700">Bank</label>
+                <select
+                  value={manualBank}
+                  onChange={(e) => setManualBank(e.target.value)}
+                  className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm focus:border-brand-400 focus:outline-none"
+                >
+                  <option value="">Select a bank</option>
+                  {MOCK_BANK_REGISTRY.map((b) => (
+                    <option key={b.bankCode} value={b.bankName}>
+                      {b.bankName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-ink-700">Recipient name</label>
+                <input
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                  placeholder="e.g. Ada Okafor"
+                  className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm focus:border-brand-400 focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-ink-700">Amount</label>
             <input

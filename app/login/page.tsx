@@ -9,7 +9,7 @@ import { useApp } from "@/context/AppContext";
 import { useToast } from "@/context/ToastContext";
 import { dashboardPathForRole } from "@/lib/onboarding";
 import { sendMockOtp, maskDestination } from "@/lib/mock-otp";
-import { findDemoUser } from "@/lib/demo-users";
+import { DEMO_USERS, findDemoUser } from "@/lib/demo-users";
 import { OtpVerification } from "@/components/auth/OtpVerification";
 import { UserType } from "@/lib/types";
 
@@ -29,6 +29,11 @@ export default function LoginPage() {
     const code = sendMockOtp(identifier);
     setOtp(code);
     showToast(`Demo OTP for testing: ${code}`, "success");
+  }
+
+  function quickFillDemo(email: string) {
+    setIdentifier(email);
+    setPasscode("123456");
   }
 
   function handleLogin(e: React.FormEvent) {
@@ -138,6 +143,25 @@ export default function LoginPage() {
                 Create an account
               </Link>
             </p>
+
+            <div className="mt-6 border-t border-white/10 pt-5">
+              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-navy-300">
+                Demo accounts
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {DEMO_USERS.map((u) => (
+                  <button
+                    key={u.email}
+                    type="button"
+                    onClick={() => quickFillDemo(u.email)}
+                    className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-left text-xs text-navy-100 hover:border-brand-400/50 hover:bg-white/[0.08]"
+                  >
+                    <span className="block font-semibold text-white">{u.label}</span>
+                    <span className="block text-navy-300">{u.email}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </>
         )}
       </div>

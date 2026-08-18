@@ -12,6 +12,10 @@ import {
   ListChecks,
   LineChart,
   Settings,
+  Percent,
+  Award,
+  Bell,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 import { UserType } from "./types";
@@ -46,8 +50,8 @@ const settingsSection: NavSection = {
       label: "Settings",
       icon: Settings,
       children: [
-        { label: "Account Details", href: "/settings" },
-        { label: "Account Limit", href: "/settings/account-limit" },
+        { label: "Account Details", href: "/settings", feature: "accountDetails" },
+        { label: "Account Limit", href: "/settings/account-limit", feature: "accountLimit" },
         { label: "Security", href: "/settings/security" },
         { label: "Help & Support", href: "/settings/help" },
       ],
@@ -111,16 +115,49 @@ const aroNavSections: NavSection[] = [
   {
     items: [
       { label: "Agent Management", href: "/aro/agents", icon: Users },
-      { label: "Performance", href: "/aro/performance", icon: LineChart },
+      { label: "Agent Performance", href: "/aro/performance", icon: LineChart },
+      { label: "POS Performance", href: "/aro/pos", icon: Tv },
       { label: "Transaction Monitoring", href: "/aro/transactions", icon: ListChecks },
+      { label: "Commissions", href: "/aro/commission", icon: Percent },
+      { label: "Referral Bonuses", href: "/aro/referrals", icon: Award },
+      { label: "Notifications", href: "/aro/notifications", icon: Bell },
       { label: "Dispute", href: "/dispute", icon: ShieldAlert },
     ],
   },
   settingsSection,
 ];
 
+// --- Business Development Officer (BDO) nav ---
+
+const bdoNavSections: NavSection[] = [
+  {
+    items: [{ label: "Overview", href: "/bdo/overview", icon: LayoutGrid }],
+  },
+  {
+    heading: "ARO Management",
+    items: [{ label: "All AROs & Comparison", href: "/bdo/aros", icon: Building2 }],
+  },
+  {
+    heading: "Network performance",
+    items: [
+      { label: "Agent Performance", href: "/bdo/agents", icon: LineChart },
+      { label: "POS Performance", href: "/bdo/pos", icon: Tv },
+      { label: "Transactions", href: "/bdo/transactions", icon: ListChecks },
+      { label: "Commission Performance", href: "/bdo/commission", icon: Percent },
+      { label: "Notifications & Alerts", href: "/bdo/notifications", icon: Bell },
+    ],
+  },
+  settingsSection,
+];
+
+function navSectionsForUserType(userType: UserType): NavSection[] {
+  if (userType === "aro") return aroNavSections;
+  if (userType === "bdo") return bdoNavSections;
+  return customerNavSections;
+}
+
 export function getNavForUserType(userType: UserType): NavSection[] {
-  const source = userType === "aro" ? aroNavSections : customerNavSections;
+  const source = navSectionsForUserType(userType);
   return source
     .map((section) => ({
       ...section,

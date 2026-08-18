@@ -28,6 +28,7 @@ export function mockFetchIdentityDetails(
 export function dashboardPathForRole(role: UserType): string {
   if (role === "business") return "/select-account";
   if (role === "aro") return "/aro/overview";
+  if (role === "bdo") return "/bdo/overview";
   return "/dashboard";
 }
 

@@ -1,36 +1,59 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search, ListFilter } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { TransactionsTable } from "@/components/modules/TransactionsTable";
+import { FilterBar, FilterFieldDef } from "@/components/modules/FilterBar";
+import { useResolvedDateRange } from "@/components/modules/DateRangeFilter";
+import { useFilterParams } from "@/lib/filter-state";
+import { isWithinRange } from "@/lib/date-range";
 import { transactions, topFiveTransactions } from "@/lib/mock-data";
 import { TransactionKind, TransactionStatus } from "@/lib/types";
 import { useRequireAccess } from "@/components/access/RequireAccess";
 
-const kinds: (TransactionKind | "ALL")[] = ["ALL", "TRANSFER", "WITHDRAWAL", "AIRTIME", "DATA", "BILL", "CARD", "VAT"];
-const statuses: (TransactionStatus | "ALL")[] = ["ALL", "COMPLETED", "PENDING", "FAILED"];
+const kinds: TransactionKind[] = ["TRANSFER", "WITHDRAWAL", "AIRTIME", "DATA", "BILL", "CARD", "VAT"];
+const statuses: TransactionStatus[] = ["COMPLETED", "PENDING", "FAILED", "REVERSED", "CANCELLED", "DISPUTED"];
+const fieldKeys = ["kind", "status"] as const;
 
-export default function TransactionsPage() {
-  const allowed = useRequireAccess("transactions");
+function TransactionsContent() {
+  const router = useRouter();
   const [view, setView] = useState<"top5" | "all">("top5");
   const [search, setSearch] = useState("");
-  const [date, setDate] = useState("");
-  const [kind, setKind] = useState<TransactionKind | "ALL">("ALL");
-  const [status, setStatus] = useState<TransactionStatus | "ALL">("ALL");
+  const { values, setValue, dateRange, setDateRange, clearAll } = useFilterParams(fieldKeys, "allTime");
+  const resolvedRange = useResolvedDateRange(dateRange);
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
       if (search && !t.description.toLowerCase().includes(search.toLowerCase()) && !t.reference.toLowerCase().includes(search.toLowerCase())) {
         return false;
       }
-      if (date && !t.date.startsWith(date)) return false;
-      if (kind !== "ALL" && t.kind !== kind) return false;
-      if (status !== "ALL" && t.status !== status) return false;
+      if (!isWithinRange(t.date, resolvedRange)) return false;
+      if (values.kind !== "ALL" && t.kind !== values.kind) return false;
+      if (values.status !== "ALL" && t.status !== values.status) return false;
       return true;
     });
-  }, [search, date, kind, status]);
+  }, [search, resolvedRange, values]);
 
+  const fields: FilterFieldDef[] = [
+    {
+      key: "kind",
+      label: "Type",
+      value: values.kind,
+      onChange: (v) => setValue("kind", v),
+      options: kinds.map((k) => ({ value: k, label: k })),
+    },
+    {
+      key: "status",
+      label: "Status",
+      value: values.status,
+      onChange: (v) => setValue("status", v),
+      options: statuses.map((s) => ({ value: s, label: s })),
+    },
+  ];
+
+  const allowed = useRequireAccess("transactions");
   if (!allowed) return null;
 
   return (
@@ -49,51 +72,25 @@ export default function TransactionsPage() {
       />
 
       {view === "all" && (
-        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="relative">
+        <>
+          <div className="relative mb-3">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search description or reference"
-              className="w-full rounded-lg border border-surface-border bg-surface-card py-2.5 pl-9 pr-3 text-sm focus:border-brand-400 focus:outline-none"
+              className="w-full max-w-md rounded-lg border border-surface-border bg-surface-card py-2.5 pl-9 pr-3 text-sm focus:border-brand-400 focus:outline-none"
             />
           </div>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="rounded-lg border border-surface-border bg-surface-card px-3 py-2.5 text-sm focus:border-brand-400 focus:outline-none"
-          />
-          <select
-            value={kind}
-            onChange={(e) => setKind(e.target.value as TransactionKind | "ALL")}
-            className="rounded-lg border border-surface-border bg-surface-card px-3 py-2.5 text-sm focus:border-brand-400 focus:outline-none"
-          >
-            {kinds.map((k) => (
-              <option key={k} value={k}>
-                {k === "ALL" ? "All types" : k}
-              </option>
-            ))}
-          </select>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as TransactionStatus | "ALL")}
-            className="rounded-lg border border-surface-border bg-surface-card px-3 py-2.5 text-sm focus:border-brand-400 focus:outline-none"
-          >
-            {statuses.map((s) => (
-              <option key={s} value={s}>
-                {s === "ALL" ? "All statuses" : s}
-              </option>
-            ))}
-          </select>
-        </div>
+          <FilterBar dateRange={{ value: dateRange, onChange: setDateRange }} fields={fields} onClearAll={clearAll} />
+        </>
       )}
 
       <TransactionsTable
         title={view === "top5" ? "Top 5 Transactions" : "All Transactions"}
         transactions={view === "top5" ? topFiveTransactions : filtered}
         showActions={view === "all"}
+        onRowClick={(t) => router.push(`/transactions/${t.id}`)}
         emptyMessage={
           view === "all" ? (
             <span className="flex items-center justify-center gap-1.5">
@@ -105,5 +102,13 @@ export default function TransactionsPage() {
         }
       />
     </div>
+  );
+}
+
+export default function TransactionsPage() {
+  return (
+    <Suspense fallback={null}>
+      <TransactionsContent />
+    </Suspense>
   );
 }

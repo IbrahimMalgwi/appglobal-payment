@@ -26,12 +26,20 @@ function DisputeContent() {
 
   const [records, setRecords] = useState<DisputeRecord[]>(seedDisputes);
 
+  // Deep-link from Transaction Details' "Raise Dispute" button: opens straight to the form
+  // step, pre-filled, instead of the type picker — reusing this exact submission flow rather
+  // than building a second dispute form. Read once via lazy initializers (this component
+  // mounts fresh on every navigation into /dispute, so there's no need for an effect here).
+  const isPrefilled = searchParams.get("prefillOpen") === "1";
+
   // New-dispute modal: a type picker (step "type") then the form (step "form").
-  const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<"type" | "form">("type");
-  const [type, setType] = useState<DisputeCategory>("pos");
-  const [reference, setReference] = useState("");
-  const [amount, setAmount] = useState("");
+  const [open, setOpen] = useState(isPrefilled);
+  const [step, setStep] = useState<"type" | "form">(isPrefilled ? "form" : "type");
+  const [type, setType] = useState<DisputeCategory>(
+    () => (searchParams.get("prefillType") as DisputeCategory | null) ?? "pos"
+  );
+  const [reference, setReference] = useState(() => searchParams.get("prefillReference") ?? "");
+  const [amount, setAmount] = useState(() => searchParams.get("prefillAmount") ?? "");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
