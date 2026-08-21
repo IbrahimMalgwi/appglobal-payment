@@ -75,6 +75,15 @@ const config: Config = {
         card: "0 1px 2px rgba(13, 18, 38, 0.04), 0 8px 24px -12px rgba(13, 18, 38, 0.10)",
         panel: "0 20px 60px -20px rgba(5, 11, 31, 0.35)",
       },
+      keyframes: {
+        flash: {
+          "0%": { opacity: "0.9" },
+          "100%": { opacity: "0" },
+        },
+      },
+      animation: {
+        flash: "flash 350ms ease-out forwards",
+      },
     },
   },
   plugins: [],

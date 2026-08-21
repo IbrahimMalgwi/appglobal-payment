@@ -13,7 +13,8 @@ export async function POST(request: Request) {
   const reason = body.reason?.trim();
   const amount = Number(body.amount);
 
-  if (body.category !== "pos" && body.category !== "withdrawal") {
+  const validCategories: DisputeCategory[] = ["pos", "withdrawal", "card", "transaction"];
+  if (!body.category || !validCategories.includes(body.category)) {
     return badRequest("Choose a dispute type.");
   }
   if (!reference) return badRequest("Enter the transaction reference.");

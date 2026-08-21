@@ -112,7 +112,11 @@ export interface PosWithdrawalRecord {
   status: TransactionStatus;
 }
 
-export type DisputeCategory = "pos" | "withdrawal";
+// "pos"/"withdrawal"/"card" are raised manually via the type picker on the Dispute page
+// (business accounts only, for the three POS-terminal/card issue types they can hit).
+// "transaction" is never manually picked — it's the category every dispute gets when raised
+// from the "Raise Dispute" action on a specific Transaction Details page, for any user type.
+export type DisputeCategory = "pos" | "withdrawal" | "card" | "transaction";
 
 export interface DisputeRecord {
   id: string;
@@ -205,6 +209,23 @@ export interface BillCategory {
   id: BillCategoryId;
   label: string;
   primary: boolean; // shown before "Show More" is clicked
+}
+
+// A single priced choice in a "pick from priced options" picker — the shared shape behind
+// both the Data bundle picker and the Cable TV package picker.
+export interface PricedOption {
+  id: string;
+  label: string;
+  price: number;
+}
+
+// An Education service type — the identifier field's label and the suggested amount both
+// depend on which service is selected.
+export interface EducationServiceOption {
+  id: string;
+  label: string;
+  identifierLabel: string;
+  suggestedAmount: number;
 }
 
 export interface AroInfo {

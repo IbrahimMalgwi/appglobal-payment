@@ -11,6 +11,8 @@ import { dashboardPathForRole } from "@/lib/onboarding";
 import { sendMockOtp, maskDestination } from "@/lib/mock-otp";
 import { DEMO_USERS, findDemoUser } from "@/lib/demo-users";
 import { OtpVerification } from "@/components/auth/OtpVerification";
+import { FaceVerification } from "@/components/auth/FaceVerification";
+import { getTrustedDevice, trustThisDevice, REQUIRE_FACE_VERIFICATION_EVERY_LOGIN } from "@/lib/device-trust";
 import { UserType } from "@/lib/types";
 
 export default function LoginPage() {
@@ -20,8 +22,11 @@ export default function LoginPage() {
   const [identifier, setIdentifier] = useState("");
   const [passcode, setPasscode] = useState("");
 
-  // In-page OTP step (no separate route — there's no backend to persist a partial login).
-  const [step, setStep] = useState<"credentials" | "otp">("credentials");
+  // In-page steps (no separate routes — there's no backend to persist a partial login).
+  // "otp" is the standard post-credentials code. "face" is the new-device check that runs
+  // after OTP succeeds, unless this browser already has a trusted-device record. "otp-fallback"
+  // reruns the OTP step as an alternate proof of identity if the camera can't be used.
+  const [step, setStep] = useState<"credentials" | "otp" | "face" | "otp-fallback">("credentials");
   const [otp, setOtp] = useState("");
   const [pendingRole, setPendingRole] = useState<UserType>("personal");
 
@@ -29,6 +34,11 @@ export default function LoginPage() {
     const code = sendMockOtp(identifier);
     setOtp(code);
     showToast(`Demo OTP for testing: ${code}`, "success");
+  }
+
+  function finishLogin(role: UserType) {
+    setUserType(role);
+    router.push(dashboardPathForRole(role));
   }
 
   function quickFillDemo(email: string) {
@@ -66,13 +76,39 @@ export default function LoginPage() {
     setStep("otp");
   }
 
-  function completeLogin(code: string) {
+  function completeOtp(code: string) {
     if (code !== otp) {
       showToast("Incorrect code, try again.", "error");
       throw new Error("incorrect-otp");
     }
-    setUserType(pendingRole);
-    router.push(dashboardPathForRole(pendingRole));
+    // Known device: OTP alone is enough, same as before this feature existed.
+    // (Temporarily disabled while REQUIRE_FACE_VERIFICATION_EVERY_LOGIN is on — see lib/device-trust.ts.)
+    if (!REQUIRE_FACE_VERIFICATION_EVERY_LOGIN && getTrustedDevice()) {
+      finishLogin(pendingRole);
+      return;
+    }
+    // New/unrecognized device (or every-login testing mode): a face-verification check before
+    // we let them in.
+    setStep("face");
+  }
+
+  function completeOtpFallback(code: string) {
+    if (code !== otp) {
+      showToast("Incorrect code, try again.", "error");
+      throw new Error("incorrect-otp");
+    }
+    trustThisDevice();
+    finishLogin(pendingRole);
+  }
+
+  function handleFaceSuccess() {
+    trustThisDevice();
+    finishLogin(pendingRole);
+  }
+
+  function handleFaceFallback() {
+    issueOtp();
+    setStep("otp-fallback");
   }
 
   return (
@@ -85,23 +121,35 @@ export default function LoginPage() {
           <span className="font-display text-lg font-bold text-white">AppGlobal Payment</span>
         </div>
 
-        {step === "otp" ? (
+        {step === "otp" || step === "otp-fallback" ? (
           <>
             <button
-              onClick={() => setStep("credentials")}
+              onClick={() => setStep(step === "otp-fallback" ? "face" : "credentials")}
               className="mb-4 flex items-center gap-1 text-sm font-semibold text-brand-400 hover:text-brand-300"
             >
               <ChevronLeft size={15} /> Back
             </button>
             <h1 className="mb-1 font-display text-xl font-bold text-white">Verify it&apos;s you</h1>
-            <p className="mb-6 text-sm text-navy-300">We sent a one-time code to keep your account secure.</p>
+            <p className="mb-6 text-sm text-navy-300">
+              {step === "otp-fallback"
+                ? "Enter the code to verify this device without your camera."
+                : "We sent a one-time code to keep your account secure."}
+            </p>
             <OtpVerification
               length={4}
               destination={maskDestination(identifier)}
-              onVerify={completeLogin}
+              onVerify={step === "otp-fallback" ? completeOtpFallback : completeOtp}
               onResend={issueOtp}
               tone="dark"
             />
+          </>
+        ) : step === "face" ? (
+          <>
+            <h1 className="mb-1 text-center font-display text-xl font-bold text-white">Verify it&apos;s you</h1>
+            <p className="mb-6 text-center text-sm text-navy-300">
+              We don&apos;t recognize this device. Confirm it&apos;s you with a quick face check.
+            </p>
+            <FaceVerification onSuccess={handleFaceSuccess} onFallback={handleFaceFallback} />
           </>
         ) : (
           <>

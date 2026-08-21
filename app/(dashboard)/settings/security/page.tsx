@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { KeyRound, Lock, ChevronRight } from "lucide-react";
+import { KeyRound, Lock, ScanFace, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
@@ -37,6 +37,22 @@ export default function SecurityPage() {
           <span className="flex-1">
             <span className="block text-sm font-semibold text-ink-900">Reset Passcode</span>
             <span className="block text-xs text-ink-400">Change the passcode you use to log in.</span>
+          </span>
+          <ChevronRight size={18} className="text-ink-300" />
+        </Link>
+
+        <Link
+          href="/settings/security/trusted-devices"
+          className="flex items-center gap-4 px-5 py-4 hover:bg-surface/60"
+        >
+          <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand-50 text-brand-600">
+            <ScanFace size={18} />
+          </span>
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-ink-900">Trusted Devices</span>
+            <span className="block text-xs text-ink-400">
+              Manage which devices can skip face verification at login.
+            </span>
           </span>
           <ChevronRight size={18} className="text-ink-300" />
         </Link>

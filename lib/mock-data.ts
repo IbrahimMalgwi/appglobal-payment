@@ -17,6 +17,7 @@ import {
   commissionRates,
   CurrentUser,
   DisputeRecord,
+  EducationServiceOption,
   FaqItem,
   NotificationItem,
   NotificationRecord,
@@ -24,6 +25,7 @@ import {
   PosTerminalRecord,
   PosTransferRecord,
   PosWithdrawalRecord,
+  PricedOption,
   ReferralBonusRecord,
   ReferralBonusStatus,
   SupportInfo,
@@ -163,13 +165,17 @@ export const posWithdrawals: PosWithdrawalRecord[] = [
   { id: "pw_3", terminalId: "POS-1188", location: "Warehouse — Ikeja", reference: ref("WDL", 3), amount: 15000, date: daysAgo(1, 8, 15), status: "PENDING" },
 ];
 
-// --- Disputes: POS + Withdrawal only ---
+// --- Disputes: POS + Withdrawal + Card (manually raised by business accounts) ---
+// "transaction"-category disputes are intentionally not seeded here — that category only
+// ever gets created via the "Raise Dispute" action on a real Transaction Details page.
 
 export const disputes: DisputeRecord[] = [
   { id: "d_1", category: "pos", reference: "POS-DSP-001", amount: 12000, date: daysAgo(4, 12, 0), reason: "Terminal charged twice", status: "open" },
   { id: "d_2", category: "pos", reference: "POS-DSP-002", amount: 4000, date: daysAgo(11, 9, 0), reason: "Failed transfer, amount debited", status: "resolved" },
   { id: "d_3", category: "withdrawal", reference: "WDL-DSP-001", amount: 8200, date: daysAgo(6, 15, 0), reason: "Cash not dispensed", status: "open" },
   { id: "d_4", category: "withdrawal", reference: "WDL-DSP-002", amount: 5000, date: daysAgo(9, 10, 0), reason: "Incorrect amount dispensed", status: "rejected" },
+  { id: "d_5", category: "card", reference: "CRD-DSP-001", amount: 15000, date: daysAgo(5, 10, 0), reason: "Unauthorized card charge", status: "open" },
+  { id: "d_6", category: "card", reference: "CRD-DSP-002", amount: 8000, date: daysAgo(13, 14, 0), reason: "Card declined but amount deducted", status: "resolved" },
 ];
 
 // --- Bill Payment categories (reusable config, not hardcoded per-category) ---
@@ -207,6 +213,59 @@ export function getBillHistory(categoryId: string): Transaction[] {
     return true;
   });
 }
+
+// --- Bill Payment: per-category configs, kept out of the components so no form hardcodes
+// its own option list. ---
+
+// Data bundles — shared across networks rather than priced per-network, since a real catalog
+// would come from a biller integration either way and this keeps the mock config simple.
+export const dataBundles: PricedOption[] = [
+  { id: "1gb", label: "1GB - 1 Day", price: 300 },
+  { id: "2gb", label: "2GB - 2 Days", price: 500 },
+  { id: "5gb", label: "5GB - 7 Days", price: 1500 },
+  { id: "10gb", label: "10GB - 30 Days", price: 3000 },
+];
+
+// Electricity — same naming precedent already used in the transactions mock data
+// ("Electricity bill payment — Ikeja Electric").
+export const electricityProviders = ["Ikeja Electric", "Eko Electric", "Abuja Electric"] as const;
+export const electricityRatePerUnit = 209.5; // ₦ per kWh (mock)
+
+// Cable TV — provider then package, same "priced options" shape as the Data bundle picker.
+export const cableProviders = ["DSTV", "GOtv", "StarTimes"] as const;
+export type CableProvider = (typeof cableProviders)[number];
+
+export const cablePackages: Record<CableProvider, PricedOption[]> = {
+  DSTV: [
+    { id: "padi", label: "Padi", price: 4400 },
+    { id: "yanga", label: "Yanga", price: 6000 },
+    { id: "confam", label: "Confam", price: 9300 },
+    { id: "compact", label: "Compact", price: 19000 },
+    { id: "compact-plus", label: "Compact Plus", price: 30000 },
+    { id: "premium", label: "Premium", price: 44500 },
+  ],
+  GOtv: [
+    { id: "smallie", label: "Smallie", price: 1900 },
+    { id: "jinja", label: "Jinja", price: 3900 },
+    { id: "jolli", label: "Jolli", price: 5800 },
+    { id: "max", label: "Max", price: 8500 },
+  ],
+  StarTimes: [
+    { id: "nova", label: "Nova", price: 1700 },
+    { id: "basic", label: "Basic", price: 3200 },
+    { id: "smart", label: "Smart", price: 4200 },
+    { id: "classic", label: "Classic", price: 5000 },
+  ],
+};
+
+export const internetProviders = ["Spectranet", "Starlink", "ipNX", "MainOne", "MTN FibreX", "Airtel"] as const;
+
+export const educationServices: EducationServiceOption[] = [
+  { id: "waec", label: "WAEC Result Checker PIN", identifierLabel: "Registration Number", suggestedAmount: 3400 },
+  { id: "neco", label: "NECO", identifierLabel: "Registration Number", suggestedAmount: 1300 },
+  { id: "jamb", label: "JAMB", identifierLabel: "JAMB Registration Number", suggestedAmount: 6200 },
+  { id: "school-fees", label: "School Fees", identifierLabel: "Student ID", suggestedAmount: 50000 },
+];
 
 // --- Assigned Agent Relationship Officer, shown on the customer dashboard ---
 
